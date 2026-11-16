@@ -1,31 +1,33 @@
 @echo off
-title Enviar Transcritor para o GitHub
-echo =======================================================
-echo   Publicar Projeto no GitHub
-echo =======================================================
+title Publicar no GitHub - Transcritor do Will
+echo ========================================================
+echo   Enviando o Transcritor do Will para o GitHub
+echo   Repositorio: https://github.com/chamaowil/TranscritordoWill.git
+echo ========================================================
 echo.
-echo 1. Va no GitHub (https://github.com/new) e crie um repositorio.
-echo 2. Cole a URL do repositorio abaixo.
-echo    (Exemplo: https://github.com/SEU_USUARIO/transcritor-audio.git)
+echo Para o GitHub aceitar o envio, ele precisa do seu Token de Acesso.
 echo.
-set /p REPO_URL="Cole a URL do Repositorio aqui: "
+echo Como gerar seu token em 20 segundos:
+echo 1. Acesse: https://github.com/settings/tokens/new
+echo 2. Em 'Note', digite: Transcritor
+echo 3. Marque a caixinha [x] 'repo'
+echo 4. Role ate o final e clique no botao verde 'Generate token'
+echo 5. Copie o token gerado (comeca com ghp_...)
+echo.
+set /p GH_TOKEN="Cole seu Token do GitHub aqui (ou pressione Enter se ja autenticou): "
 
-if "%REPO_URL%"=="" (
+if "%GH_TOKEN%"=="" (
     echo.
-    echo Nenhuma URL informada. Cancelado.
-    pause
-    exit /b
+    echo Tentando envio direto...
+    "C:\Users\Office\.mingit\cmd\git.exe" push -u origin main
+) else (
+    echo.
+    echo Enviando com Token para o GitHub...
+    "C:\Users\Office\.mingit\cmd\git.exe" push -u https://%GH_TOKEN%@github.com/chamaowil/TranscritordoWill.git main
 )
 
 echo.
-echo Configurando e enviando arquivos para o GitHub...
-"C:\Users\Office\.mingit\cmd\git.exe" remote remove origin 2>nul
-"C:\Users\Office\.mingit\cmd\git.exe" remote add origin %REPO_URL%
-"C:\Users\Office\.mingit\cmd\git.exe" branch -M main
-"C:\Users\Office\.mingit\cmd\git.exe" push -u origin main
-
-echo.
-echo =======================================================
-echo   Envio concluido! Agora va para o Render.com.
-echo =======================================================
+echo ========================================================
+echo   Processo finalizado! Agora conecte no Render.com.
+echo ========================================================
 pause
