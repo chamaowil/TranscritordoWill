@@ -6,7 +6,10 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { createPixPayment } from './pix.js';
+import { db } from './db.js';
 
 dotenv.config();
 
@@ -15,6 +18,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'transcritor-do-will-secure-jwt-secret-key-2026';
 
 // Garante que o diretório de uploads temporários existe
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -45,58 +49,175 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Helper para obter cliente Gemini (usa chave enviada na requisição ou do .env)
-function getGeminiClient(customApiKey) {
-  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+// Middleware de Autenticação Segura JWT
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'AUTH_REQUIRED',
+      message: 'Acesso não autorizado. Por favor, entre na sua conta para continuar.'
+    });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({
+        success: false,
+        error: 'INVALID_TOKEN',
+        message: 'Sua sessão expirou. Faça login novamente.'
+      });
+    }
+
+    const user = db.findUserById(decoded.id);
+    if (!user) {
+      return res.status(403).json({
+        success: false,
+        error: 'USER_NOT_FOUND',
+        message: 'Usuário não encontrado.'
+      });
+    }
+
+    req.user = user;
+    next();
+  });
+}
+
+// Helper para obter cliente Gemini (exclusivo do servidor, sem vazar chaves)
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('Chave da API do Gemini não configurada. Por favor, informe sua chave do Google AI Studio nas configurações.');
+    throw new Error('Serviço de IA temporariamente indisponível. Contate o suporte.');
   }
   return new GoogleGenAI({ apiKey: apiKey.trim() });
 }
 
-// Endpoint de status da aplicação
+// ========================================================
+// ROTAS DE STATUS & PÚBLICAS
+// ========================================================
 app.get('/api/status', (req, res) => {
   const hasServerKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '');
   res.json({
     ok: true,
+    service: 'Transcritor do Will',
     hasServerApiKey: hasServerKey,
     defaultPort: PORT
   });
 });
 
-// Endpoint para testar validade de uma API Key
-app.post('/api/validate-key', async (req, res) => {
+// ========================================================
+// ROTAS DE AUTENTICAÇÃO (CADASTRO, LOGIN E PERFIL)
+// ========================================================
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const { apiKey } = req.body;
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-      return res.status(400).json({ valid: false, error: 'A chave da API não foi fornecida.' });
+    const { name, email, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Informe seu nome completo.' });
+    }
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Informe um e-mail válido.' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'A senha deve ter no mínimo 6 caracteres.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-    // Faz uma chamada rápida de teste
-    const testResult = await ai.interactions.create({
-      model: 'gemini-3.5-flash-lite',
-      input: 'Responda apenas "OK" se estiver funcionando.'
-    });
+    const existingUser = db.findUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado. Faça login.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = db.createUser({ name, email, passwordHash });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.json({
-      valid: true,
-      message: 'Chave de API validada com sucesso!',
-      response: testResult.output_text || 'OK'
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        credits: user.credits
+      }
     });
-  } catch (error) {
-    console.error('Erro na validação da chave:', error);
-    res.status(400).json({
-      valid: false,
-      error: error.message || 'Chave da API inválida ou sem permissão.'
-    });
+  } catch (err) {
+    console.error('Erro no registro:', err);
+    res.status(500).json({ success: false, message: 'Erro interno ao criar conta.' });
   }
 });
 
-// Endpoint para gerar cobrança Pix
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
+    }
+
+    const user = db.findUserByEmail(email);
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'E-mail ou senha incorretos.' });
+    }
+
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) {
+      return res.status(400).json({ success: false, message: 'E-mail ou senha incorretos.' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        credits: user.credits,
+        transcriptionsCount: user.transcriptionsCount || 0
+      }
+    });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    res.status(500).json({ success: false, message: 'Erro interno ao realizar login.' });
+  }
+});
+
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+  const user = req.user;
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      plan: user.plan,
+      credits: user.credits,
+      transcriptionsCount: user.transcriptionsCount || 0
+    }
+  });
+});
+
+// ========================================================
+// ROTAS DE PAGAMENTO PIX E ASSINATURAS
+// ========================================================
 app.post('/api/create-pix', async (req, res) => {
   try {
-    const { plan = 'pro' } = req.body;
+    const { plan = 'pro', userEmail } = req.body;
 
     const planConfig = {
       single: { title: 'Transcrição Avulsa', amount: 9.90 },
@@ -118,6 +239,16 @@ app.post('/api/create-pix', async (req, res) => {
       txId
     });
 
+    db.addTransaction({
+      txId,
+      plan,
+      planTitle: selected.title,
+      amount: selected.amount,
+      userEmail: userEmail || null,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+
     res.json({
       success: true,
       plan,
@@ -134,7 +265,73 @@ app.post('/api/create-pix', async (req, res) => {
   }
 });
 
-// Mapeamento de extensões para MIME types suportados
+app.post('/api/confirm-pix', authenticateToken, (req, res) => {
+  try {
+    const { plan, txId } = req.body;
+    const user = req.user;
+
+    let updates = {};
+
+    if (plan === 'single') {
+      updates = {
+        credits: (user.credits || 0) + 1
+      };
+    } else if (plan === 'pro') {
+      updates = {
+        plan: 'pro',
+        credits: 999
+      };
+    } else if (plan === 'unlimited') {
+      updates = {
+        plan: 'unlimited',
+        credits: 9999
+      };
+    }
+
+    const updatedUser = db.updateUser(user.id, updates);
+    if (txId) {
+      db.updateTransaction(txId, { status: 'paid', userId: user.id });
+    }
+
+    res.json({
+      success: true,
+      message: 'Plano ativado com sucesso!',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        plan: updatedUser.plan,
+        credits: updatedUser.credits
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao confirmar plano:', err);
+    res.status(500).json({ success: false, message: 'Erro ao ativar plano.' });
+  }
+});
+
+// ========================================================
+// ROTAS DE HISTÓRICO PRIVADO DO USUÁRIO
+// ========================================================
+app.get('/api/history', authenticateToken, (req, res) => {
+  const history = db.getUserHistory(req.user.id);
+  res.json({ success: true, history });
+});
+
+app.delete('/api/history/:id', authenticateToken, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.deleteHistoryItem(req.user.id, id);
+  res.json({ success: true, message: 'Item removido do histórico.' });
+});
+
+app.delete('/api/history', authenticateToken, (req, res) => {
+  db.clearUserHistory(req.user.id);
+  res.json({ success: true, message: 'Histórico limpo.' });
+});
+
+// ========================================================
+// TRANSCRIÇÃO DE ÁUDIO COM IA (PROTEGIDA POR LOGIN & CRÉDITOS)
+// ========================================================
 function getAudioMimeType(filePath, originalMimeType) {
   const ext = path.extname(filePath).toLowerCase();
   const map = {
@@ -156,7 +353,6 @@ function getAudioMimeType(filePath, originalMimeType) {
   return 'audio/mp3';
 }
 
-// Constrói o prompt adequado para transcrição
 function buildTranscriptionPrompt({
   detectSpeakers,
   includeTimestamps,
@@ -166,8 +362,8 @@ function buildTranscriptionPrompt({
 }) {
   const instructions = [];
 
-  instructions.push('Você é um assistente especialista de transcrição e análise de áudio profissional de alto nível.');
-  instructions.push('Sua tarefa principal é transcrever o áudio com máxima fidelidade e precisão.');
+  instructions.push('Você é o Transcritor do Will, um assistente especialista de transcrição e análise de áudio de alto nível.');
+  instructions.push('Sua tarefa é transcrever o áudio fornecido com máxima fidelidade e precisão.');
   instructions.push('Mantenha pontuação impecável, acentuação e divida as falas em parágrafos coerentes.');
 
   if (targetLanguage === 'translate_pt') {
@@ -250,56 +446,57 @@ function buildTranscriptionPrompt({
   return instructions.join('\n');
 }
 
-// Endpoint principal: Transcrever áudio
-app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (req, res) => {
   let uploadedFile = null;
   let geminiFileRef = null;
   let ai = null;
 
   try {
+    const user = req.user;
+
+    // Verificação de Créditos e Plano
+    const hasActiveSubscription = user.plan === 'pro' || user.plan === 'unlimited';
+    const hasCredits = (user.credits || 0) > 0;
+
+    if (!hasActiveSubscription && !hasCredits) {
+      return res.status(403).json({
+        success: false,
+        error: 'CREDITS_EXHAUSTED',
+        message: 'Você utilizou seu crédito gratuito! Escolha um plano ou adquira créditos para continuar transcrevendo.'
+      });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo de áudio foi enviado.' });
     }
 
     uploadedFile = req.file;
     const {
-      apiKey,
       model = 'gemini-3.8-flash',
       detectSpeakers = 'true',
       includeTimestamps = 'true',
-      generateSummary = 'true',
       outputFormat = 'summary_points',
       targetLanguage = 'auto',
       customInstructions = ''
     } = req.body;
 
-    ai = getGeminiClient(apiKey);
+    ai = getGeminiClient();
 
     const filePath = uploadedFile.path;
     const fileSize = uploadedFile.size;
     const mimeType = getAudioMimeType(filePath, uploadedFile.mimetype);
 
-    console.log(`[Upload] Arquivo: ${uploadedFile.originalname} | Tamanho: ${(fileSize / (1024 * 1024)).toFixed(2)} MB | Formato Análise: ${outputFormat}`);
+    console.log(`[Upload] Usuário: ${user.email} | Arquivo: ${uploadedFile.originalname} | Tamanho: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
 
-    // Escolhe o modelo: gemini-3.8-flash ou gemini-3.5-transcribe
     const selectedModel = model === 'gemini-3.5-transcribe' ? 'gemini-3.5-transcribe' : 'gemini-3.8-flash';
-
     let interactionInput = [];
 
-    // Se o arquivo for menor que 15MB, podemos enviar inline em Base64
     if (fileSize < 15 * 1024 * 1024) {
-      console.log('[Gemini] Processando com dados inline (Base64)...');
       const fileBuffer = await fs.promises.readFile(filePath);
       const base64Data = fileBuffer.toString('base64');
 
       if (selectedModel === 'gemini-3.5-transcribe') {
-        interactionInput = [
-          {
-            type: 'audio',
-            data: base64Data,
-            mime_type: mimeType
-          }
-        ];
+        interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
       } else {
         const promptText = buildTranscriptionPrompt({
           detectSpeakers,
@@ -308,33 +505,19 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
           targetLanguage,
           customInstructions
         });
-
         interactionInput = [
           { type: 'text', text: promptText },
-          {
-            type: 'audio',
-            data: base64Data,
-            mime_type: mimeType
-          }
+          { type: 'audio', data: base64Data, mime_type: mimeType }
         ];
       }
     } else {
-      // Para arquivos maiores que 15MB, usamos o Gemini Files API
-      console.log('[Gemini] Arquivo grande. Fazendo upload via Gemini Files API...');
       geminiFileRef = await ai.files.upload({
         file: filePath,
         config: { mimeType }
       });
-      console.log(`[Gemini Files] Upload concluído: ${geminiFileRef.uri}`);
 
       if (selectedModel === 'gemini-3.5-transcribe') {
-        interactionInput = [
-          {
-            type: 'audio',
-            uri: geminiFileRef.uri,
-            mime_type: geminiFileRef.mimeType || mimeType
-          }
-        ];
+        interactionInput = [{ type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }];
       } else {
         const promptText = buildTranscriptionPrompt({
           detectSpeakers,
@@ -343,19 +526,13 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
           targetLanguage,
           customInstructions
         });
-
         interactionInput = [
           { type: 'text', text: promptText },
-          {
-            type: 'audio',
-            uri: geminiFileRef.uri,
-            mime_type: geminiFileRef.mimeType || mimeType
-          }
+          { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
         ];
       }
     }
 
-    console.log(`[Gemini] Chamando modelo ${selectedModel}...`);
     const interaction = await ai.interactions.create({
       model: selectedModel,
       input: interactionInput
@@ -363,7 +540,6 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
     const fullOutput = interaction.output_text || '';
 
-    // Extrai seções estruturadas se houver
     let transcriptionText = fullOutput;
     let summaryText = '';
     let keyPointsText = '';
@@ -379,6 +555,36 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     if (pointsMatch) keyPointsText = pointsMatch[1].trim();
     if (actionsMatch) actionItemsText = actionsMatch[1].trim();
 
+    // Desconta crédito se o plano for 'free' ou 'single'
+    let remainingCredits = user.credits;
+    if (!hasActiveSubscription && user.credits > 0) {
+      remainingCredits = user.credits - 1;
+      db.updateUser(user.id, {
+        credits: remainingCredits,
+        transcriptionsCount: (user.transcriptionsCount || 0) + 1
+      });
+    } else {
+      db.updateUser(user.id, {
+        transcriptionsCount: (user.transcriptionsCount || 0) + 1
+      });
+    }
+
+    // Salva no histórico privado do usuário
+    const historyItem = {
+      id: Date.now(),
+      userId: user.id,
+      date: new Date().toLocaleString('pt-BR'),
+      fileName: uploadedFile.originalname,
+      modelUsed: selectedModel,
+      outputFormat,
+      transcription: transcriptionText,
+      summary: summaryText,
+      keyPoints: keyPointsText,
+      actionItems: actionItemsText,
+      words: transcriptionText ? transcriptionText.split(/\s+/).length : 0
+    };
+    db.addHistory(historyItem);
+
     res.json({
       success: true,
       modelUsed: selectedModel,
@@ -390,7 +596,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       actionItems: actionItemsText,
       fileName: uploadedFile.originalname,
       fileSize: fileSize,
-      durationEstimatedSeconds: Math.round(fileSize / (16 * 1024)) // Estimativa básica
+      remainingCredits,
+      plan: user.plan
     });
 
   } catch (error) {
@@ -400,28 +607,21 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       error: error.message || 'Erro inesperado ao processar a transcrição.'
     });
   } finally {
-    // Limpa o arquivo temporário do servidor
     if (uploadedFile && uploadedFile.path) {
-      fs.unlink(uploadedFile.path, (err) => {
-        if (err) console.error('Erro ao deletar arquivo temporário local:', err);
-      });
+      fs.unlink(uploadedFile.path, () => {});
     }
-
-    // Se enviou para o Files API, deleta o arquivo temporário na nuvem do Gemini
     if (geminiFileRef && geminiFileRef.name && ai) {
       try {
         await ai.files.delete({ name: geminiFileRef.name });
-      } catch (err) {
-        // Exclusão é melhor esforço
-      }
+      } catch (err) {}
     }
   }
 });
 
 const server = app.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(` Servidor de Transcrição de Áudio rodando com sucesso!`);
-  console.log(` Acesse no navegador: http://localhost:${PORT}`);
+  console.log(` Transcritor do Will (Produção) rodando com sucesso!`);
+  console.log(` Acesse: http://localhost:${PORT}`);
   console.log(`=======================================================`);
 });
 

@@ -54,13 +54,13 @@
 </head>
 <body class="bg-[#f8fafc] dark:bg-[#0b0f19] text-chumbo-900 dark:text-chumbo-100 min-h-screen font-sans selection:bg-royal-600 selection:text-white antialiased transition-colors duration-200">
 
-  <!-- Header -->
+  <!-- Header Principal -->
   <header class="border-b border-chumbo-200 dark:border-chumbo-800 bg-white/95 dark:bg-chumbo-900/95 backdrop-blur-md sticky top-0 z-40 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 py-3 flex items-center justify-between">
       
       <!-- Brand Logo Oficial -->
-      <div class="flex items-center gap-3.5">
-        <img src="/assets/icon.png" alt="Transcritor do Will Icon" class="w-11 h-11 rounded-xl shadow-md object-cover bg-royal-700 border border-royal-600">
+      <a href="/" class="flex items-center gap-3.5 group">
+        <img src="/assets/icon.png" alt="Transcritor do Will Icon" class="w-11 h-11 rounded-xl shadow-md object-cover bg-royal-700 border border-royal-600 group-hover:scale-105 transition">
         <div>
           <div class="flex items-center gap-2">
             <h1 class="font-extrabold text-lg sm:text-xl text-chumbo-900 dark:text-white tracking-tight leading-tight">
@@ -72,9 +72,9 @@
           </div>
           <p class="text-xs text-chumbo-500 dark:text-chumbo-400 font-medium hidden sm:block">Transcrições de alta fidelidade, atas executivas e relatórios em PDF</p>
         </div>
-      </div>
+      </a>
 
-      <!-- Actions Header -->
+      <!-- Ações do Header -->
       <div class="flex items-center gap-2 sm:gap-3">
         
         <!-- Botão Planos & Pix -->
@@ -95,33 +95,50 @@
           <span class="hidden sm:inline">Histórico</span>
         </button>
 
-        <!-- Botão Chave API -->
-        <button id="btnOpenKeyModal" class="text-xs font-semibold px-3 sm:px-3.5 py-2 rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:border-chumbo-300 bg-white dark:bg-chumbo-900 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 transition flex items-center gap-2 shadow-xs" title="Configurar Chave da API Gemini">
-          <span id="keyStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-          <span id="keyStatusText" class="text-chumbo-800 dark:text-chumbo-200 hidden sm:inline">Chave API</span>
-          <i class="fa-solid fa-key text-chumbo-400 text-[11px]"></i>
-        </button>
+        <!-- Container de Autenticação / Perfil de Usuário -->
+        <div id="authHeaderContainer" class="flex items-center gap-2 pl-1 border-l border-chumbo-200 dark:border-chumbo-800">
+          
+          <!-- Estado Não Logado -->
+          <div id="unauthNav" class="flex items-center gap-2">
+            <button id="btnOpenLogin" class="text-xs font-semibold px-3 py-2 rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-200 transition shadow-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-arrow-right-to-bracket text-royal-600 dark:text-royal-400"></i>
+              <span>Entrar</span>
+            </button>
+            <button id="btnOpenRegister" class="text-xs font-bold px-3.5 py-2 rounded-xl bg-royal-700 hover:bg-royal-800 text-white shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-user-plus"></i>
+              <span class="hidden sm:inline">Criar</span> Conta
+            </button>
+          </div>
+
+          <!-- Estado Logado -->
+          <div id="authNav" class="hidden flex items-center gap-2">
+            <!-- Badge de Créditos / Plano Atual -->
+            <button id="btnUserPlanBadge" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-royal-50 dark:bg-royal-950/70 border border-royal-200 dark:border-royal-800 text-royal-700 dark:text-royal-300 flex items-center gap-1.5 shadow-xs transition hover:bg-royal-100 dark:hover:bg-royal-900" title="Clique para ver planos ou recarregar créditos">
+              <i class="fa-solid fa-bolt text-amber-500"></i>
+              <span id="headerCreditsText">1 Crédito</span>
+            </button>
+
+            <!-- Nome do Usuário -->
+            <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-chumbo-100/70 dark:bg-chumbo-800/60 border border-chumbo-200 dark:border-chumbo-700/60 text-xs font-semibold text-chumbo-800 dark:text-chumbo-200">
+              <i class="fa-regular fa-circle-user text-royal-600 dark:text-royal-400"></i>
+              <span id="headerUserName">Usuário</span>
+            </div>
+
+            <!-- Botão Sair (Logout) -->
+            <button id="btnLogout" class="p-2 text-xs font-semibold rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 text-chumbo-500 dark:text-chumbo-400 transition" title="Sair da Conta">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+
+        </div>
+
       </div>
 
     </div>
   </header>
 
-  <!-- Main Container -->
+  <!-- Container Principal -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-
-    <!-- Top Banner Alert (Se não tiver chave configurada) -->
-    <div id="noKeyWarning" class="hidden mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start justify-between gap-4 shadow-xs">
-      <div class="flex items-start gap-3">
-        <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 text-lg mt-0.5"></i>
-        <div>
-          <h3 class="font-bold text-amber-900 dark:text-amber-200 text-sm">Chave da API Gemini não configurada</h3>
-          <p class="text-xs text-amber-800 dark:text-amber-300 mt-0.5">Para transcrever, informe sua chave gratuita do Google AI Studio ou use com plano liberado.</p>
-        </div>
-      </div>
-      <button onclick="document.getElementById('btnOpenKeyModal').click()" class="shrink-0 text-xs px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold transition shadow-xs">
-        Configurar Agora
-      </button>
-    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
@@ -250,173 +267,194 @@
                 <p class="text-[11px] text-chumbo-500 dark:text-chumbo-400">Adiciona marcadores [00:15] para navegar pelo áudio</p>
               </div>
             </label>
+
+            <!-- Campo oculto para compatibilidade -->
+            <input type="checkbox" id="checkSummary" checked class="hidden">
           </div>
 
           <!-- Idioma / Tradução -->
-          <div class="pt-1">
+          <div>
             <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Idioma & Tradução</label>
             <select id="selectLanguage" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2 text-xs text-chumbo-900 dark:text-white font-medium focus:outline-none focus:border-royal-700 focus:bg-white dark:focus:bg-chumbo-900 transition">
-              <option value="auto" selected>Detectar automaticamente (Mantém idioma original)</option>
+              <option value="auto" selected>Detectar Automaticamente (Qualquer idioma)</option>
               <option value="pt-BR">Português do Brasil</option>
-              <option value="translate_pt">Traduzir áudio estrangeiro para Português</option>
-              <option value="en">Inglês</option>
-              <option value="es">Espanhol</option>
+              <option value="translate_pt">Traduzir Direto para Português (de Inglês/Espanhol/etc)</option>
+              <option value="en">Inglês (English)</option>
+              <option value="es">Espanhol (Español)</option>
             </select>
           </div>
 
-          <!-- Instruções Adicionais Opcionais -->
+          <!-- Instruções Adicionais & Jargões -->
           <div>
-            <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Instruções ou Termos Específicos (Opcional)</label>
-            <input type="text" id="customInstructions" placeholder="Ex: Nomes próprios, marcas, termos jurídicos ou médicos..." class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:bg-white dark:focus:bg-chumbo-900 placeholder:text-chumbo-400 transition">
+            <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">
+              Vocabulário Específico ou Instruções Extras <span class="text-chumbo-400 font-normal">(Opcional)</span>
+            </label>
+            <textarea id="customInstructions" rows="2" placeholder="Ex: Nomes próprios (Wilson, Maria), termos jurídicos, médicos ou siglas específicas..." class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl p-3 text-xs text-chumbo-900 dark:text-white placeholder:text-chumbo-400 focus:outline-none focus:border-royal-700 focus:bg-white dark:focus:bg-chumbo-900 transition resize-none"></textarea>
           </div>
 
-          <!-- Botão Principal de Transcrição -->
-          <button id="btnTranscribe" class="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-royal-800 via-royal-700 to-royal-600 hover:from-royal-900 hover:to-royal-700 text-white font-bold text-sm shadow-md shadow-royal-700/25 flex items-center justify-center gap-2.5 transition transform active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none">
-            <i class="fa-solid fa-sparkles text-royal-200"></i>
-            <span>Iniciar Transcrição & Análise</span>
+          <!-- Botão Principal Transcrever -->
+          <button id="btnTranscribe" class="w-full py-4 px-6 rounded-2xl bg-royal-700 hover:bg-royal-800 text-white font-extrabold text-sm sm:text-base tracking-wide shadow-lg shadow-royal-700/25 flex items-center justify-center gap-3 transition transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+            <span>Transcrever & Analisar Áudio</span>
           </button>
 
         </div>
 
       </section>
 
-      <!-- Coluna Direita: Resultados da Transcrição (7 cols) -->
-      <section class="lg:col-span-7 space-y-6">
-
-        <!-- Card de Status / Carregando (Oculto por padrão) -->
-        <div id="loadingCard" class="hidden bg-white dark:bg-chumbo-900 border border-royal-200 dark:border-royal-800 rounded-2xl p-10 text-center shadow-[0_2px_12px_rgba(37,99,235,0.08)] space-y-5 transition-colors">
-          <div class="relative w-16 h-16 mx-auto">
-            <div class="w-16 h-16 rounded-full border-4 border-royal-100 dark:border-royal-950 border-t-royal-700 dark:border-t-royal-500 animate-spin"></div>
-            <div class="absolute inset-0 flex items-center justify-center text-royal-700 dark:text-royal-400">
-              <i class="fa-solid fa-brain text-xl animate-pulse"></i>
-            </div>
-          </div>
-          <div>
-            <h3 id="loadingTitle" class="font-extrabold text-base text-chumbo-900 dark:text-white">Transcrevendo áudio...</h3>
-            <p id="loadingSubtitle" class="text-xs text-chumbo-500 dark:text-chumbo-400 mt-1">A IA está processando e formatando as falas com pontuação</p>
-          </div>
-          <div class="w-full bg-chumbo-100 dark:bg-chumbo-950 rounded-full h-2 overflow-hidden max-w-xs mx-auto">
-            <div id="loadingBar" class="bg-royal-700 h-2 rounded-full w-1/3 animate-pulse"></div>
-          </div>
-        </div>
-
-        <!-- Card de Resultado Principal -->
-        <div id="resultCard" class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col min-h-[540px] transition-colors">
-
-          <!-- Cabeçalho do Card de Resultado -->
-          <div class="p-4 sm:p-5 border-b border-chumbo-200 dark:border-chumbo-800 flex flex-wrap items-center justify-between gap-3 bg-chumbo-50/50 dark:bg-chumbo-950/50 rounded-t-2xl">
+      <!-- Coluna Direita: Resultados, Abas & Exportação (7 cols) -->
+      <section class="lg:col-span-7">
+        
+        <div id="resultCard" class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden transition-colors min-h-[620px] flex flex-col">
+          
+          <!-- Top Bar do Card de Resultado -->
+          <div class="p-4 sm:p-5 border-b border-chumbo-200 dark:border-chumbo-800 flex flex-wrap items-center justify-between gap-3">
+            
             <!-- Abas do Resultado -->
-            <div class="flex bg-chumbo-200/70 dark:bg-chumbo-950 p-1 rounded-xl border border-chumbo-300 dark:border-chumbo-800">
-              <button id="resTabTranscribe" class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs flex items-center gap-2 transition">
-                <i class="fa-solid fa-file-lines"></i> Transcrição
+            <div class="flex items-center gap-1.5 bg-chumbo-100 dark:bg-chumbo-950 p-1 rounded-xl border border-chumbo-200 dark:border-chumbo-800">
+              <button id="resTabTranscribe" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-align-left text-[11px]"></i> Transcrição
               </button>
-              <button id="resTabSummary" class="px-3.5 py-1.5 text-xs font-bold rounded-lg text-chumbo-700 dark:text-chumbo-300 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-2 transition">
-                <i class="fa-solid fa-lightbulb"></i> Resumo & Ações
+              <button id="resTabSummary" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-chart-pie text-[11px]"></i> Resumo & Atas
               </button>
-              <button id="resTabSRT" class="px-3.5 py-1.5 text-xs font-bold rounded-lg text-chumbo-700 dark:text-chumbo-300 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-2 transition">
-                <i class="fa-solid fa-closed-captioning"></i> Legenda (SRT)
+              <button id="resTabSRT" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-closed-captioning text-[11px]"></i> Legendas (SRT)
               </button>
             </div>
 
-            <!-- Botões de Ação: Exportar PDF, Copiar, Baixar TXT, SRT, MD, Imprimir -->
+            <!-- Ações: Exportar PDF, Copiar, Baixar -->
             <div class="flex items-center gap-2">
-              <button id="btnExportPDF" class="px-3.5 py-1.5 text-xs rounded-xl bg-royal-700 hover:bg-royal-800 text-white font-bold shadow-xs transition flex items-center gap-1.5" title="Exportar Relatório Formatado em PDF Profissional">
+              
+              <!-- Botão Exportar PDF Profissional -->
+              <button id="btnExportPDF" class="text-xs font-bold px-3 sm:px-4 py-2 rounded-xl bg-royal-700 hover:bg-royal-800 text-white shadow-xs transition flex items-center gap-1.5" title="Exportar Documento em PDF Corporativo">
                 <i class="fa-solid fa-file-pdf"></i>
                 <span>Exportar PDF</span>
               </button>
 
-              <button id="btnCopyText" class="px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-700 text-chumbo-800 dark:text-chumbo-200 font-semibold border border-chumbo-300 dark:border-chumbo-700 transition flex items-center gap-1.5 shadow-xs" title="Copiar texto para Área de Transferência">
-                <i class="fa-regular fa-copy text-chumbo-500 dark:text-chumbo-400"></i>
+              <!-- Botão Copiar -->
+              <button id="btnCopyText" class="text-xs font-semibold px-3 py-2 rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-300 transition shadow-xs flex items-center gap-1.5" title="Copiar texto para Área de Transferência">
+                <i class="fa-regular fa-copy"></i>
                 <span class="hidden sm:inline">Copiar</span>
               </button>
-              
-              <!-- Dropdown Baixar Mais -->
+
+              <!-- Dropdown Mais Opções -->
               <div class="relative">
-                <button id="btnDownloadDropdown" class="px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-700 text-chumbo-800 dark:text-chumbo-200 font-semibold border border-chumbo-300 dark:border-chumbo-700 transition flex items-center gap-1.5 shadow-xs">
-                  <i class="fa-solid fa-download text-chumbo-500 dark:text-chumbo-400"></i>
-                  <span class="hidden sm:inline">Mais</span>
-                  <i class="fa-solid fa-chevron-down text-[10px] text-chumbo-400"></i>
+                <button id="btnDownloadDropdown" class="text-xs font-semibold p-2 rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-300 transition shadow-xs flex items-center" title="Mais opções de download">
+                  <i class="fa-solid fa-ellipsis-vertical px-1"></i>
                 </button>
-                <div id="downloadMenu" class="hidden absolute right-0 mt-1 w-48 bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 rounded-xl shadow-xl py-1 z-30">
-                  <button id="btnDownloadTXT" class="w-full text-left px-3.5 py-2 text-xs font-medium text-chumbo-700 dark:text-chumbo-300 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-2">
-                    <i class="fa-regular fa-file-lines text-royal-700"></i> Texto Puro (.txt)
+
+                <!-- Menu Dropdown -->
+                <div id="downloadMenu" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-chumbo-900 rounded-2xl shadow-xl border border-chumbo-200 dark:border-chumbo-800 py-1.5 z-20 text-xs">
+                  <button id="btnDownloadTXT" class="w-full text-left px-4 py-2 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-200 flex items-center gap-2.5">
+                    <i class="fa-regular fa-file-lines text-chumbo-400"></i> Baixar como .TXT
                   </button>
-                  <button id="btnDownloadSRT" class="w-full text-left px-3.5 py-2 text-xs font-medium text-chumbo-700 dark:text-chumbo-300 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-2">
-                    <i class="fa-solid fa-closed-captioning text-violet-600"></i> Legenda (.srt)
+                  <button id="btnDownloadSRT" class="w-full text-left px-4 py-2 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-200 flex items-center gap-2.5">
+                    <i class="fa-solid fa-closed-captioning text-chumbo-400"></i> Baixar Legenda .SRT
                   </button>
-                  <button id="btnDownloadMD" class="w-full text-left px-3.5 py-2 text-xs font-medium text-chumbo-700 dark:text-chumbo-300 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-2">
-                    <i class="fa-brands fa-markdown text-blue-600"></i> Markdown (.md)
+                  <button id="btnDownloadMD" class="w-full text-left px-4 py-2 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-200 flex items-center gap-2.5">
+                    <i class="fa-brands fa-markdown text-chumbo-400"></i> Baixar Markdown (.MD)
+                  </button>
+                  <div class="border-t border-chumbo-200 dark:border-chumbo-800 my-1"></div>
+                  <button id="btnPrint" class="w-full text-left px-4 py-2 hover:bg-chumbo-50 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-200 flex items-center gap-2.5">
+                    <i class="fa-solid fa-print text-chumbo-400"></i> Imprimir Documento
                   </button>
                 </div>
               </div>
 
-              <button id="btnPrint" class="p-2 text-xs rounded-xl bg-white dark:bg-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-700 text-chumbo-700 dark:text-chumbo-300 border border-chumbo-300 dark:border-chumbo-700 transition shadow-xs" title="Imprimir direto">
-                <i class="fa-solid fa-print"></i>
-              </button>
             </div>
+
           </div>
 
           <!-- Corpo do Resultado -->
-          <div class="p-6 flex-1 flex flex-col">
-            
-            <!-- Estado Vazio (Antes de transcrever) -->
-            <div id="emptyResultState" class="m-auto text-center py-16 px-4 space-y-3">
-              <div class="w-16 h-16 rounded-2xl bg-chumbo-100 dark:bg-chumbo-950 text-chumbo-400 dark:text-chumbo-500 mx-auto flex items-center justify-center text-2xl border border-chumbo-200 dark:border-chumbo-800">
-                <i class="fa-solid fa-waveform"></i>
+          <div class="p-5 sm:p-6 flex-1 flex flex-col relative">
+
+            <!-- Estado Inicial Vazio -->
+            <div id="emptyResultState" class="my-auto text-center py-16 px-4 space-y-4">
+              <div class="w-20 h-20 mx-auto rounded-3xl bg-royal-50 dark:bg-royal-950/60 border border-royal-200/60 dark:border-royal-800/60 text-royal-700 dark:text-royal-400 flex items-center justify-center text-3xl shadow-sm">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
               </div>
-              <h3 class="font-bold text-chumbo-800 dark:text-chumbo-200 text-sm">Nenhuma transcrição realizada ainda</h3>
-              <p class="text-xs text-chumbo-500 dark:text-chumbo-400 max-w-sm mx-auto">Envie um arquivo de áudio ou grave diretamente pelo microfone ao lado para visualizar a transcrição aqui.</p>
+              <div class="max-w-md mx-auto space-y-1.5">
+                <h3 class="font-bold text-base text-chumbo-900 dark:text-white">Nenhuma transcrição realizada ainda</h3>
+                <p class="text-xs text-chumbo-500 dark:text-chumbo-400 leading-relaxed">
+                  Envie um arquivo de áudio ou grave pelo microfone à esquerda e clique em <strong>Transcrever</strong> para gerar o texto integral, atas de reuniões e relatórios executivos.
+                </p>
+              </div>
             </div>
 
-            <!-- Painel 1: Transcrição -->
+            <!-- Card de Loading com Animação -->
+            <div id="loadingCard" class="hidden my-auto py-16 text-center space-y-5">
+              <div class="relative w-20 h-20 mx-auto">
+                <div class="w-20 h-20 rounded-full border-4 border-royal-100 dark:border-royal-950 border-t-royal-700 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-royal-700 dark:text-royal-400 text-xl">
+                  <i class="fa-solid fa-robot"></i>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <h4 id="loadingTitle" class="font-extrabold text-base text-chumbo-900 dark:text-white">Ouvindo e transcrevendo áudio...</h4>
+                <p id="loadingSubtitle" class="text-xs text-chumbo-500 dark:text-chumbo-400">Reconhecendo falas com alta fidelidade</p>
+              </div>
+            </div>
+
+            <!-- Painel 1: Transcrição Direta -->
             <div id="paneResTranscribe" class="hidden flex-1 flex flex-col space-y-3">
-              <div class="flex items-center justify-between text-[11px] text-chumbo-500 dark:text-chumbo-400 pb-2 border-b border-chumbo-200 dark:border-chumbo-800 font-medium">
-                <span id="wordCountLabel">0 palavras • 0 caracteres</span>
-                <span class="text-royal-700 dark:text-royal-400 font-bold flex items-center gap-1">
-                  <i class="fa-solid fa-pen-to-square text-[10px]"></i> Texto editável
+              <div class="flex items-center justify-between text-xs text-chumbo-500 dark:text-chumbo-400 pb-1">
+                <span id="wordCountLabel" class="font-medium">0 palavras • 0 caracteres</span>
+                <span class="text-[11px] text-royal-700 dark:text-royal-400 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-pen-to-square"></i> Editável diretamente
                 </span>
               </div>
-              <textarea id="transcriptionTextArea" class="w-full flex-1 min-h-[360px] bg-transparent border-0 text-chumbo-900 dark:text-white text-sm leading-relaxed focus:outline-none resize-none font-sans" placeholder="O texto transcrito aparecerá aqui..."></textarea>
+              <textarea id="transcriptionTextArea" class="w-full flex-1 min-h-[460px] bg-chumbo-50/50 dark:bg-chumbo-950/50 border border-chumbo-200 dark:border-chumbo-800 rounded-2xl p-4 sm:p-5 text-sm sm:text-base leading-relaxed text-chumbo-900 dark:text-chumbo-100 focus:outline-none focus:border-royal-700 focus:bg-white dark:focus:bg-chumbo-900 transition resize-none font-sans" placeholder="A transcrição aparecerá aqui..."></textarea>
             </div>
 
-            <!-- Painel 2: Resumo & Ações -->
-            <div id="paneResSummary" class="hidden flex-1 space-y-4 text-sm text-chumbo-900 dark:text-chumbo-100 overflow-y-auto max-h-[500px] pr-2">
-              <div class="p-4 rounded-xl bg-royal-50/70 dark:bg-royal-950/40 border border-royal-200 dark:border-royal-800/80">
-                <h4 class="font-extrabold text-xs uppercase tracking-wider text-royal-800 dark:text-royal-300 mb-2 flex items-center gap-2">
-                  <i class="fa-solid fa-bookmark text-royal-700 dark:text-royal-400"></i> Resumo Executivo
+            <!-- Painel 2: Resumo Executivo & Atas -->
+            <div id="paneResSummary" class="hidden flex-1 space-y-6 overflow-y-auto pr-1">
+              
+              <!-- Bloco Resumo -->
+              <div class="p-5 rounded-2xl bg-royal-50/40 dark:bg-royal-950/30 border border-royal-200 dark:border-royal-900 space-y-2">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-royal-700 dark:text-royal-400 flex items-center gap-2">
+                  <i class="fa-solid fa-align-left"></i> Resumo Executivo
                 </h4>
-                <div id="summaryContent" class="text-xs text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-wrap font-medium">Nenhum resumo gerado.</div>
+                <div id="summaryContent" class="text-xs sm:text-sm text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-line font-medium"></div>
               </div>
 
-              <div class="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80">
-                <h4 class="font-extrabold text-xs uppercase tracking-wider text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
-                  <i class="fa-solid fa-check-double text-emerald-700 dark:text-emerald-400"></i> Pontos-Chave & Decisões
+              <!-- Bloco Pontos-Chave -->
+              <div class="p-5 rounded-2xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 space-y-2">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-chumbo-700 dark:text-chumbo-300 flex items-center gap-2">
+                  <i class="fa-solid fa-list-check text-royal-700 dark:text-royal-400"></i> Pontos-Chave & Decisões
                 </h4>
-                <div id="keyPointsContent" class="text-xs text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-wrap font-medium">Nenhum ponto registrado.</div>
+                <div id="keyPointsContent" class="text-xs sm:text-sm text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-line"></div>
               </div>
 
-              <div class="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80">
-                <h4 class="font-extrabold text-xs uppercase tracking-wider text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-2">
-                  <i class="fa-solid fa-list-check text-amber-700 dark:text-amber-400"></i> Próximos Passos & Deliberações
+              <!-- Bloco Próximos Passos -->
+              <div class="p-5 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/60 space-y-2">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 flex items-center gap-2">
+                  <i class="fa-solid fa-forward-step"></i> Próximos Passos & Ações
                 </h4>
-                <div id="actionItemsContent" class="text-xs text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-wrap font-medium">Nenhuma ação detectada.</div>
+                <div id="actionItemsContent" class="text-xs sm:text-sm text-chumbo-800 dark:text-chumbo-200 leading-relaxed whitespace-pre-line"></div>
               </div>
+
             </div>
 
             <!-- Painel 3: Legendas SRT -->
             <div id="paneResSRT" class="hidden flex-1 flex flex-col space-y-3">
-              <div class="flex items-center justify-between text-[11px] text-chumbo-500 dark:text-chumbo-400 pb-2 border-b border-chumbo-200 dark:border-chumbo-800 font-medium">
-                <span>Formato de Legenda SRT (compatível com YouTube, Premiere, DaVinci, VLC)</span>
+              <div class="flex items-center justify-between text-xs text-chumbo-500 dark:text-chumbo-400 pb-1">
+                <span>Formato SubRip (.SRT) para YouTube, Premiere, DaVinci e CapCut</span>
               </div>
-              <textarea id="srtTextArea" class="w-full flex-1 min-h-[360px] bg-chumbo-950 dark:bg-chumbo-950 p-4 rounded-xl border border-chumbo-800 text-xs font-mono text-emerald-400 leading-relaxed focus:outline-none resize-none"></textarea>
+              <textarea id="srtTextArea" class="w-full flex-1 min-h-[460px] bg-chumbo-50/50 dark:bg-chumbo-950/50 border border-chumbo-200 dark:border-chumbo-800 rounded-2xl p-4 sm:p-5 text-xs font-mono leading-relaxed text-chumbo-800 dark:text-chumbo-200 focus:outline-none focus:border-royal-700 transition resize-none"></textarea>
             </div>
 
           </div>
 
-          <!-- Rodapé do Card com Meta-informações -->
-          <div id="resultFooter" class="hidden px-5 py-3 border-t border-chumbo-200 dark:border-chumbo-800 bg-chumbo-50 dark:bg-chumbo-950/80 rounded-b-2xl flex flex-wrap items-center justify-between text-[11px] text-chumbo-600 dark:text-chumbo-400 font-medium">
-            <span id="footerFileName">arquivo.mp3</span>
-            <span id="footerModel">Transcritor do Will • Gemini AI</span>
+          <!-- Rodapé de Metadados -->
+          <div id="resultFooter" class="hidden px-5 py-3 border-t border-chumbo-200 dark:border-chumbo-800 bg-chumbo-50/50 dark:bg-chumbo-950/50 flex items-center justify-between text-xs text-chumbo-500 dark:text-chumbo-400">
+            <div class="flex items-center gap-2 truncate">
+              <i class="fa-solid fa-file-audio text-royal-700 dark:text-royal-400"></i>
+              <span id="footerFileName" class="truncate font-medium">audio.mp3</span>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <span id="footerModel" class="font-medium">Google Gemini</span>
+            </div>
           </div>
 
         </div>
@@ -426,6 +464,106 @@
     </div>
 
   </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: AUTENTICAÇÃO (LOGIN / CADASTRO) -->
+  <!-- ======================================================== -->
+  <div id="modalAuth" class="hidden fixed inset-0 bg-chumbo-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5 transition-colors">
+      
+      <!-- Botão Fechar -->
+      <button id="btnCloseAuthModal" class="absolute top-5 right-5 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-white p-2 rounded-xl transition">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <!-- Cabeçalho do Modal com Logo -->
+      <div class="flex items-center gap-3">
+        <img src="/assets/icon.png" alt="Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover bg-royal-700">
+        <div>
+          <h3 class="font-extrabold text-lg text-chumbo-900 dark:text-white tracking-tight">Transcritor do Will</h3>
+          <p id="authSubtitle" class="text-xs text-chumbo-500 dark:text-chumbo-400">Entre ou cadastre-se para transcrever</p>
+        </div>
+      </div>
+
+      <!-- Abas: Entrar vs Criar Conta -->
+      <div class="flex bg-chumbo-100 dark:bg-chumbo-950 p-1 rounded-xl border border-chumbo-200 dark:border-chumbo-800">
+        <button id="tabAuthLogin" class="flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition">
+          Entrar
+        </button>
+        <button id="tabAuthRegister" class="flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition">
+          Criar Conta
+        </button>
+      </div>
+
+      <!-- Feedback de Erro ou Sucesso -->
+      <div id="authFeedback" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+
+      <!-- Aba 1: Formulário de Login -->
+      <form id="formLogin" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">E-mail</label>
+          <input type="email" id="loginEmail" required placeholder="seuemail@exemplo.com" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Senha</label>
+          <div class="relative">
+            <input type="password" id="loginPassword" required placeholder="Sua senha secreta" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white pr-10 focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+            <button type="button" id="btnToggleLoginPass" class="absolute right-3 top-2.5 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-chumbo-200">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="w-full py-3 px-4 rounded-xl bg-royal-700 hover:bg-royal-800 text-white font-bold text-xs shadow-md shadow-royal-700/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          <span>Entrar no Transcritor do Will</span>
+        </button>
+
+        <p class="text-center text-xs text-chumbo-500 dark:text-chumbo-400 pt-1">
+          Não tem uma conta? <button type="button" id="btnSwitchToRegister" class="text-royal-700 dark:text-royal-400 font-bold hover:underline">Cadastre-se grátis</button>
+        </p>
+      </form>
+
+      <!-- Aba 2: Formulário de Registro -->
+      <form id="formRegister" class="hidden space-y-4">
+        <div class="p-3 rounded-xl bg-royal-50 dark:bg-royal-950/70 border border-royal-200 dark:border-royal-800 text-xs text-royal-700 dark:text-royal-300 flex items-center gap-2.5">
+          <i class="fa-solid fa-gift text-base text-royal-600 shrink-0"></i>
+          <span><strong>Ganhe 1 crédito gratuito</strong> ao se cadastrar para testar o Transcritor agora mesmo!</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Nome Completo</label>
+          <input type="text" id="registerName" required placeholder="Como quer ser chamado" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">E-mail</label>
+          <input type="email" id="registerEmail" required placeholder="seuemail@exemplo.com" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Criar Senha (mínimo 6 caracteres)</label>
+          <div class="relative">
+            <input type="password" id="registerPassword" minlength="6" required placeholder="Crie uma senha segura" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white pr-10 focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+            <button type="button" id="btnToggleRegisterPass" class="absolute right-3 top-2.5 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-chumbo-200">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btnRegisterSubmit" class="w-full py-3 px-4 rounded-xl bg-royal-700 hover:bg-royal-800 text-white font-bold text-xs shadow-md shadow-royal-700/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Cadastrar e Ganhar 1 Crédito Grátis</span>
+        </button>
+
+        <p class="text-center text-xs text-chumbo-500 dark:text-chumbo-400 pt-1">
+          Já tem uma conta? <button type="button" id="btnSwitchToLogin" class="text-royal-700 dark:text-royal-400 font-bold hover:underline">Fazer login</button>
+        </p>
+      </form>
+
+    </div>
+  </div>
 
   <!-- ======================================================== -->
   <!-- MODAL: PLANOS & PAGAMENTO VIA PIX -->
@@ -491,7 +629,7 @@
                 <span class="text-xs text-chumbo-500">/mês</span>
               </div>
               <ul class="space-y-2 text-xs text-chumbo-700 dark:text-chumbo-200 pt-2 border-t border-royal-200 dark:border-royal-900">
-                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[11px]"></i> Até 10 Horas de Áudio/mês</li>
+                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[11px]"></i> Acesso Ilimitado 30 dias</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[11px]"></i> Atas de Reunião Corporativas</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[11px]"></i> Relatórios em PDF Ilimitados</li>
                 <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[11px]"></i> Diarização de Falantes</li>
@@ -534,7 +672,9 @@
           <button id="btnBackToPlans" class="text-xs font-bold text-royal-700 dark:text-royal-400 hover:underline flex items-center gap-1.5">
             <i class="fa-solid fa-arrow-left"></i> Voltar aos Planos
           </button>
-          <span class="text-xs font-bold text-chumbo-500 dark:text-chumbo-400">Pagamento 100% Seguro</span>
+          <span class="text-xs font-bold text-chumbo-500 dark:text-chumbo-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-lock text-emerald-600"></i> Pagamento 100% Seguro
+          </span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
@@ -594,82 +734,27 @@
     </div>
   </div>
 
-  <!-- Modal: Configuração da Chave da API Gemini -->
-  <div id="modalKey" class="hidden fixed inset-0 bg-chumbo-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative space-y-5 transition-colors">
-      
-      <!-- Botão Fechar -->
-      <button id="btnCloseKeyModal" class="absolute top-4 right-4 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-white p-1.5 rounded-lg">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-royal-100 dark:bg-royal-950 text-royal-700 dark:text-royal-400 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-key"></i>
-        </div>
-        <div>
-          <h3 class="font-extrabold text-base text-chumbo-900 dark:text-white">Chave da API Gemini</h3>
-          <p class="text-xs text-chumbo-500 dark:text-chumbo-400">Google AI Studio</p>
-        </div>
-      </div>
-
-      <div class="space-y-3 text-xs text-chumbo-700 dark:text-chumbo-300">
-        <p>A chave é necessária para processar as transcrições com a inteligência do Google. A cota é <strong>100% gratuita</strong>.</p>
-        
-        <div class="p-3.5 rounded-xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 space-y-2">
-          <p class="font-bold text-chumbo-900 dark:text-white">Como obter sua chave em 30 segundos:</p>
-          <ol class="list-decimal list-inside space-y-1 text-chumbo-600 dark:text-chumbo-400">
-            <li>Acesse o <a href="https://aistudio.google.com/apikey" target="_blank" class="text-royal-700 dark:text-royal-400 underline font-semibold">Google AI Studio (Clique aqui)</a></li>
-            <li>Faça login com sua conta Google</li>
-            <li>Clique em <strong>"Create API key"</strong> e copie a chave</li>
-          </ol>
-        </div>
-
-        <div>
-          <label class="block font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Cole sua chave da API aqui:</label>
-          <div class="relative">
-            <input type="password" id="inputApiKey" placeholder="AIzaSy..." class="w-full bg-white dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white pr-10 focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 font-mono transition">
-            <button id="btnToggleKeyVisibility" class="absolute right-3 top-2.5 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-chumbo-200">
-              <i class="fa-regular fa-eye"></i>
-            </button>
-          </div>
-        </div>
-
-        <div id="keyValidationFeedback" class="hidden p-3 rounded-xl text-xs font-medium"></div>
-      </div>
-
-      <div class="flex items-center justify-end gap-3 pt-2">
-        <button id="btnClearKey" class="text-xs font-semibold px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition">
-          Remover Chave
-        </button>
-        <button id="btnSaveKey" class="text-xs font-bold px-5 py-2.5 rounded-xl bg-royal-700 hover:bg-royal-800 text-white flex items-center gap-2 transition shadow-xs">
-          <i class="fa-solid fa-check"></i>
-          <span>Validar e Salvar</span>
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Modal / Drawer: Histórico de Transcrições -->
+  <!-- ======================================================== -->
+  <!-- MODAL / DRAWER: HISTÓRICO DE TRANSCRIÇÕES -->
+  <!-- ======================================================== -->
   <div id="modalHistory" class="hidden fixed inset-0 bg-chumbo-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 w-full max-w-xl max-h-[85vh] rounded-2xl p-6 shadow-2xl relative flex flex-col space-y-4 transition-colors">
+    <div class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 w-full max-w-xl max-h-[85vh] rounded-3xl p-6 shadow-2xl relative flex flex-col space-y-4 transition-colors">
       
-      <button id="btnCloseHistoryModal" class="absolute top-4 right-4 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-white p-1.5 rounded-lg">
+      <button id="btnCloseHistoryModal" class="absolute top-4 right-4 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-white p-1.5 rounded-lg transition">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
       <div class="flex items-center justify-between pb-3 border-b border-chumbo-200 dark:border-chumbo-800">
         <div class="flex items-center gap-2.5">
           <i class="fa-solid fa-clock-rotate-left text-royal-700 dark:text-royal-400 text-lg"></i>
-          <h3 class="font-extrabold text-base text-chumbo-900 dark:text-white">Histórico de Transcrições</h3>
+          <h3 class="font-extrabold text-base text-chumbo-900 dark:text-white">Seu Histórico Privado</h3>
         </div>
         <button id="btnClearAllHistory" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
           Limpar histórico
         </button>
       </div>
 
-      <!-- Lista de Itens -->
+      <!-- Lista de Itens do Histórico -->
       <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
         <p class="text-chumbo-400 text-center py-8">Nenhuma transcrição salva no histórico.</p>
       </div>

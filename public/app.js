@@ -1,7 +1,9 @@
-// Transcritor de Áudio AI - Frontend Logic
+// Transcritor do Will - Frontend Logic
+// Cores Oficiais: Branco, Cinza Chumbo (#0f172a, #1e293b), Azul Royal (#1d4ed8, #2563eb)
+// Sem vazamento de credenciais: Todas as chaves e processamentos ficam no servidor
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Estado da Aplicação
+  // Estado Global da Aplicação
   const state = {
     selectedFile: null,
     recordedBlob: null,
@@ -9,32 +11,51 @@ document.addEventListener('DOMContentLoaded', () => {
     mediaRecorder: null,
     recordTimerInterval: null,
     recordSeconds: 0,
-    serverHasApiKey: false,
+    user: null,
+    token: localStorage.getItem('trw_auth_token') || null,
     currentResult: null,
-    history: []
+    history: [],
+    currentPixTxId: null,
+    currentSelectedPlan: 'pro'
   };
 
   // Elementos do DOM
   const dom = {
-    // Header & Key
-    btnOpenKeyModal: document.getElementById('btnOpenKeyModal'),
-    btnCloseKeyModal: document.getElementById('btnCloseKeyModal'),
-    modalKey: document.getElementById('modalKey'),
-    inputApiKey: document.getElementById('inputApiKey'),
-    btnToggleKeyVisibility: document.getElementById('btnToggleKeyVisibility'),
-    btnSaveKey: document.getElementById('btnSaveKey'),
-    btnClearKey: document.getElementById('btnClearKey'),
-    keyValidationFeedback: document.getElementById('keyValidationFeedback'),
-    keyStatusDot: document.getElementById('keyStatusDot'),
-    keyStatusText: document.getElementById('keyStatusText'),
-    noKeyWarning: document.getElementById('noKeyWarning'),
+    // Header & Perfil
+    unauthNav: document.getElementById('unauthNav'),
+    authNav: document.getElementById('authNav'),
+    btnOpenLogin: document.getElementById('btnOpenLogin'),
+    btnOpenRegister: document.getElementById('btnOpenRegister'),
+    btnUserPlanBadge: document.getElementById('btnUserPlanBadge'),
+    headerCreditsText: document.getElementById('headerCreditsText'),
+    headerUserName: document.getElementById('headerUserName'),
+    btnLogout: document.getElementById('btnLogout'),
 
     // Tema Dark / Light
     btnToggleTheme: document.getElementById('btnToggleTheme'),
     themeIcon: document.getElementById('themeIcon'),
     themeText: document.getElementById('themeText'),
 
-    // Planos & Modal Pix
+    // Modal de Autenticação (Login / Cadastro)
+    modalAuth: document.getElementById('modalAuth'),
+    btnCloseAuthModal: document.getElementById('btnCloseAuthModal'),
+    tabAuthLogin: document.getElementById('tabAuthLogin'),
+    tabAuthRegister: document.getElementById('tabAuthRegister'),
+    formLogin: document.getElementById('formLogin'),
+    formRegister: document.getElementById('formRegister'),
+    loginEmail: document.getElementById('loginEmail'),
+    loginPassword: document.getElementById('loginPassword'),
+    btnToggleLoginPass: document.getElementById('btnToggleLoginPass'),
+    registerName: document.getElementById('registerName'),
+    registerEmail: document.getElementById('registerEmail'),
+    registerPassword: document.getElementById('registerPassword'),
+    btnToggleRegisterPass: document.getElementById('btnToggleRegisterPass'),
+    authFeedback: document.getElementById('authFeedback'),
+    btnSwitchToRegister: document.getElementById('btnSwitchToRegister'),
+    btnSwitchToLogin: document.getElementById('btnSwitchToLogin'),
+    authSubtitle: document.getElementById('authSubtitle'),
+
+    // Modal de Planos & Checkout Pix
     btnOpenPricingModal: document.getElementById('btnOpenPricingModal'),
     btnClosePricingModal: document.getElementById('btnClosePricingModal'),
     modalPricing: document.getElementById('modalPricing'),
@@ -49,14 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCopyPixCode: document.getElementById('btnCopyPixCode'),
     btnConfirmPayment: document.getElementById('btnConfirmPayment'),
 
-    // History Modal
+    // Modal de Histórico Privado
     btnOpenHistory: document.getElementById('btnOpenHistory'),
     btnCloseHistoryModal: document.getElementById('btnCloseHistoryModal'),
     modalHistory: document.getElementById('modalHistory'),
     historyList: document.getElementById('historyList'),
     btnClearAllHistory: document.getElementById('btnClearAllHistory'),
 
-    // Tabs de Entrada
+    // Abas de Entrada de Áudio
     tabUpload: document.getElementById('tabUpload'),
     tabRecord: document.getElementById('tabRecord'),
     paneUpload: document.getElementById('paneUpload'),
@@ -71,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRemoveFile: document.getElementById('btnRemoveFile'),
     audioElement: document.getElementById('audioElement'),
 
-    // Gravação
+    // Gravação Microfone
     btnRecordToggle: document.getElementById('btnRecordToggle'),
     recordIcon: document.getElementById('recordIcon'),
     recordPulse: document.getElementById('recordPulse'),
@@ -80,17 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
     recordAudioPreview: document.getElementById('recordAudioPreview'),
     recordAudioElement: document.getElementById('recordAudioElement'),
 
-    // Opções
+    // Opções de Transcrição
     selectModel: document.getElementById('selectModel'),
     selectOutputFormat: document.getElementById('selectOutputFormat'),
     checkSpeakers: document.getElementById('checkSpeakers'),
     checkTimestamps: document.getElementById('checkTimestamps'),
-    checkSummary: document.getElementById('checkSummary'),
     selectLanguage: document.getElementById('selectLanguage'),
     customInstructions: document.getElementById('customInstructions'),
     btnTranscribe: document.getElementById('btnTranscribe'),
 
-    // Loading & Resultados
+    // Resultados & Abas
     loadingCard: document.getElementById('loadingCard'),
     loadingTitle: document.getElementById('loadingTitle'),
     loadingSubtitle: document.getElementById('loadingSubtitle'),
@@ -111,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     footerFileName: document.getElementById('footerFileName'),
     footerModel: document.getElementById('footerModel'),
 
-    // Ações
+    // Ações de Download / Exportação
     btnExportPDF: document.getElementById('btnExportPDF'),
     btnCopyText: document.getElementById('btnCopyText'),
     btnDownloadDropdown: document.getElementById('btnDownloadDropdown'),
@@ -121,21 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDownloadMD: document.getElementById('btnDownloadMD'),
     btnPrint: document.getElementById('btnPrint'),
 
-    // Toast
+    // Notificações Toast
     toast: document.getElementById('toastNotification'),
     toastMessage: document.getElementById('toastMessage'),
     toastIcon: document.getElementById('toastIcon')
   };
 
   // ==========================================
-  // INICIALIZAÇÃO
+  // INICIALIZAÇÃO DO APP
   // ==========================================
   async function init() {
     initTheme();
-    loadLocalApiKey();
-    loadHistory();
-    await checkServerStatus();
     setupEventListeners();
+    await checkAuthStatus();
   }
 
   // ==========================================
@@ -154,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dom.themeText) dom.themeText.textContent = 'Claro';
     } else {
       html.classList.remove('dark');
-      if (dom.themeIcon) dom.themeIcon.className = 'fa-solid fa-moon text-chumbo-600 text-sm';
+      if (dom.themeIcon) dom.themeIcon.className = 'fa-solid fa-moon text-chumbo-600 dark:text-chumbo-300 text-sm';
       if (dom.themeText) dom.themeText.textContent = 'Escuro';
     }
     localStorage.setItem('transcritor_theme', theme);
@@ -165,141 +183,363 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(isDark ? 'light' : 'dark');
   }
 
-  // Verifica status do servidor
-  async function checkServerStatus() {
-    try {
-      const res = await fetch('/api/status');
-      const data = await res.json();
-      state.serverHasApiKey = data.hasServerApiKey;
-      updateKeyStatusUI();
-    } catch (e) {
-      console.warn('Não foi possível verificar status do servidor:', e);
-    }
-  }
-
   // ==========================================
-  // GERENCIAMENTO DA CHAVE API
+  // AUTENTICAÇÃO E SESSÃO DO USUÁRIO
   // ==========================================
-  function getStoredApiKey() {
-    return localStorage.getItem('gemini_api_key') || '';
-  }
-
-  function loadLocalApiKey() {
-    const key = getStoredApiKey();
-    if (key) {
-      dom.inputApiKey.value = key;
-    }
-    updateKeyStatusUI();
-  }
-
-  function updateKeyStatusUI() {
-    const localKey = getStoredApiKey();
-    const hasKey = Boolean(localKey || state.serverHasApiKey);
-
-    if (hasKey) {
-      dom.keyStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
-      dom.keyStatusText.textContent = localKey ? 'Chave Conectada' : 'Chave do Servidor (.env)';
-      dom.keyStatusText.className = 'font-medium text-emerald-300';
-      dom.noKeyWarning.classList.add('hidden');
-    } else {
-      dom.keyStatusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-      dom.keyStatusText.textContent = 'Configurar Chave API';
-      dom.keyStatusText.className = 'font-medium text-slate-300';
-      dom.noKeyWarning.classList.remove('hidden');
-    }
-  }
-
-  async function handleSaveKey() {
-    const key = dom.inputApiKey.value.trim();
-    if (!key) {
-      showKeyFeedback('Por favor, insira uma chave.', 'error');
+  async function checkAuthStatus() {
+    const token = state.token;
+    if (!token) {
+      state.user = null;
+      updateAuthUI();
       return;
     }
 
-    showKeyFeedback('Validando chave com Google AI...', 'info');
-    dom.btnSaveKey.disabled = true;
-
     try {
-      const res = await fetch('/api/validate-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key })
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
 
-      if (data.valid) {
-        localStorage.setItem('gemini_api_key', key);
-        showKeyFeedback('Chave validada e salva com sucesso!', 'success');
-        updateKeyStatusUI();
-        showToast('Chave da API Gemini configurada!');
-        setTimeout(() => {
-          dom.modalKey.classList.add('hidden');
-          dom.keyValidationFeedback.classList.add('hidden');
-        }, 1200);
+      if (res.ok && data.success && data.user) {
+        state.user = data.user;
+        updateAuthUI();
+        loadUserHistory();
       } else {
-        showKeyFeedback(data.error || 'Chave inválida. Verifique e tente novamente.', 'error');
+        // Token inválido ou expirado
+        state.token = null;
+        state.user = null;
+        localStorage.removeItem('trw_auth_token');
+        updateAuthUI();
       }
     } catch (err) {
-      showKeyFeedback('Erro ao conectar ao servidor para validar a chave.', 'error');
-    } finally {
-      dom.btnSaveKey.disabled = false;
+      console.warn('Erro ao verificar sessão do usuário:', err);
+      updateAuthUI();
     }
   }
 
-  function handleClearKey() {
-    localStorage.removeItem('gemini_api_key');
-    dom.inputApiKey.value = '';
-    updateKeyStatusUI();
-    showKeyFeedback('Chave removida do navegador.', 'info');
-    showToast('Chave removida');
+  function updateAuthUI() {
+    if (state.user) {
+      // Usuário autenticado
+      if (dom.unauthNav) dom.unauthNav.classList.add('hidden');
+      if (dom.authNav) dom.authNav.classList.remove('hidden');
+
+      const firstName = (state.user.name || 'Usuário').split(' ')[0];
+      if (dom.headerUserName) dom.headerUserName.textContent = firstName;
+
+      // Atualiza badge de créditos / plano
+      if (dom.headerCreditsText) {
+        if (state.user.plan === 'pro') {
+          dom.headerCreditsText.textContent = '⭐ Plano Pro';
+        } else if (state.user.plan === 'unlimited') {
+          dom.headerCreditsText.textContent = '🏢 Ilimitado';
+        } else {
+          const c = state.user.credits || 0;
+          dom.headerCreditsText.textContent = `${c} Crédito${c === 1 ? '' : 's'}`;
+        }
+      }
+    } else {
+      // Visitante não autenticado
+      if (dom.unauthNav) dom.unauthNav.classList.remove('hidden');
+      if (dom.authNav) dom.authNav.classList.add('hidden');
+    }
   }
 
-  function showKeyFeedback(msg, type) {
-    dom.keyValidationFeedback.classList.remove('hidden', 'bg-rose-950/50', 'text-rose-300', 'border-rose-700', 'bg-emerald-950/50', 'text-emerald-300', 'border-emerald-700', 'bg-indigo-950/50', 'text-indigo-300', 'border-indigo-700');
-    dom.keyValidationFeedback.classList.add('border');
+  function openAuthModal(defaultTab = 'login', message = '') {
+    if (dom.modalAuth) {
+      switchAuthTab(defaultTab);
+      if (message) {
+        showAuthFeedback(message, 'info');
+      } else {
+        hideAuthFeedback();
+      }
+      dom.modalAuth.classList.remove('hidden');
+    }
+  }
+
+  function closeAuthModal() {
+    if (dom.modalAuth) {
+      dom.modalAuth.classList.add('hidden');
+      hideAuthFeedback();
+    }
+  }
+
+  function switchAuthTab(tab) {
+    hideAuthFeedback();
+    if (tab === 'register') {
+      dom.tabAuthRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition';
+      dom.tabAuthLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition';
+      dom.formRegister.classList.remove('hidden');
+      dom.formLogin.classList.add('hidden');
+      if (dom.authSubtitle) dom.authSubtitle.textContent = 'Crie sua conta e ganhe 1 crédito grátis';
+    } else {
+      dom.tabAuthLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition';
+      dom.tabAuthRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition';
+      dom.formLogin.classList.remove('hidden');
+      dom.formRegister.classList.add('hidden');
+      if (dom.authSubtitle) dom.authSubtitle.textContent = 'Entre na sua conta para transcrever';
+    }
+  }
+
+  function showAuthFeedback(msg, type = 'error') {
+    if (!dom.authFeedback) return;
+    dom.authFeedback.textContent = msg;
+    dom.authFeedback.classList.remove('hidden');
 
     if (type === 'error') {
-      dom.keyValidationFeedback.classList.add('bg-rose-950/50', 'text-rose-300', 'border-rose-700');
+      dom.authFeedback.className = 'p-3 rounded-xl text-xs font-medium bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300';
     } else if (type === 'success') {
-      dom.keyValidationFeedback.classList.add('bg-emerald-950/50', 'text-emerald-300', 'border-emerald-700');
+      dom.authFeedback.className = 'p-3 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300';
     } else {
-      dom.keyValidationFeedback.classList.add('bg-indigo-950/50', 'text-indigo-300', 'border-indigo-700');
+      dom.authFeedback.className = 'p-3 rounded-xl text-xs font-medium bg-royal-50 dark:bg-royal-950/60 border border-royal-200 dark:border-royal-800 text-royal-700 dark:text-royal-300';
     }
-    dom.keyValidationFeedback.textContent = msg;
+  }
+
+  function hideAuthFeedback() {
+    if (dom.authFeedback) {
+      dom.authFeedback.classList.add('hidden');
+      dom.authFeedback.textContent = '';
+    }
+  }
+
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    const email = dom.loginEmail.value.trim();
+    const password = dom.loginPassword.value;
+
+    if (!email || !password) {
+      showAuthFeedback('Por favor, informe seu e-mail e senha.', 'error');
+      return;
+    }
+
+    showAuthFeedback('Autenticando...', 'info');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success && data.token) {
+        state.token = data.token;
+        state.user = data.user;
+        localStorage.setItem('trw_auth_token', data.token);
+
+        updateAuthUI();
+        closeAuthModal();
+        showToast(`Bem-vindo de volta, ${data.user.name}!`);
+        loadUserHistory();
+      } else {
+        showAuthFeedback(data.message || 'E-mail ou senha incorretos.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro no login:', err);
+      showAuthFeedback('Erro de conexão ao servidor. Tente novamente.', 'error');
+    }
+  }
+
+  async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    const name = dom.registerName.value.trim();
+    const email = dom.registerEmail.value.trim();
+    const password = dom.registerPassword.value;
+
+    if (!name || !email || !password) {
+      showAuthFeedback('Preencha todos os campos para continuar.', 'error');
+      return;
+    }
+    if (password.length < 6) {
+      showAuthFeedback('A senha deve ter pelo menos 6 caracteres.', 'error');
+      return;
+    }
+
+    showAuthFeedback('Criando sua conta...', 'info');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success && data.token) {
+        state.token = data.token;
+        state.user = data.user;
+        localStorage.setItem('trw_auth_token', data.token);
+
+        updateAuthUI();
+        closeAuthModal();
+        showToast(`Conta criada! Você ganhou 1 crédito gratuito 🎉`);
+        loadUserHistory();
+      } else {
+        showAuthFeedback(data.message || 'Falha ao criar conta. Verifique os dados.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro no cadastro:', err);
+      showAuthFeedback('Erro de conexão ao servidor. Tente novamente.', 'error');
+    }
+  }
+
+  function handleLogout() {
+    state.token = null;
+    state.user = null;
+    localStorage.removeItem('trw_auth_token');
+    updateAuthUI();
+    state.history = [];
+    renderHistoryList();
+    showToast('Você saiu da sua conta.');
   }
 
   // ==========================================
-  // ARQUIVOS & DRAG-AND-DROP
+  // GESTÃO DE PLANOS & PAGAMENTO PIX
+  // ==========================================
+  async function handleSelectPlan(plan) {
+    state.currentSelectedPlan = plan;
+
+    // Se o usuário não estiver logado, convidamos a logar primeiro
+    if (!state.user) {
+      dom.modalPricing.classList.add('hidden');
+      openAuthModal('register', 'Crie sua conta ou faça login antes para vincular sua assinatura!');
+      return;
+    }
+
+    try {
+      showToast('Gerando cobrança Pix instantânea...');
+      const res = await fetch('/api/create-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan,
+          userEmail: state.user.email
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        state.currentPixTxId = data.txId;
+
+        // Atualiza a View de Checkout
+        dom.checkoutPlanBadge.textContent = data.planTitle;
+        dom.checkoutPlanTitle.textContent = data.planTitle;
+        dom.checkoutAmountText.textContent = `R$ ${Number(data.amount).toFixed(2).replace('.', ',')}`;
+        dom.pixQrCodeImg.src = data.qrCodeDataUrl;
+        dom.inputPixCode.value = data.pixCode;
+
+        // Alterna visão
+        dom.pricingPlansView.classList.add('hidden');
+        dom.pricingCheckoutView.classList.remove('hidden');
+      } else {
+        showToast(data.error || 'Erro ao gerar Pix.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao gerar Pix:', err);
+      showToast('Falha ao comunicar com o servidor Pix.', 'error');
+    }
+  }
+
+  function handleBackToPlans() {
+    if (dom.pricingCheckoutView) dom.pricingCheckoutView.classList.add('hidden');
+    if (dom.pricingPlansView) dom.pricingPlansView.classList.remove('hidden');
+  }
+
+  function handleCopyPix() {
+    const code = dom.inputPixCode.value;
+    if (!code) return;
+
+    navigator.clipboard.writeText(code).then(() => {
+      const originalHTML = dom.btnCopyPixCode.innerHTML;
+      dom.btnCopyPixCode.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
+      showToast('Código Pix copiado! Cole no app do seu banco.');
+      setTimeout(() => {
+        dom.btnCopyPixCode.innerHTML = originalHTML;
+      }, 2500);
+    }).catch(() => {
+      showToast('Falha ao copiar automaticamente.', 'error');
+    });
+  }
+
+  async function handleConfirmPayment() {
+    if (!state.user || !state.token) {
+      dom.modalPricing.classList.add('hidden');
+      openAuthModal('login', 'Faça login para ativar seu plano.');
+      return;
+    }
+
+    try {
+      dom.btnConfirmPayment.disabled = true;
+      dom.btnConfirmPayment.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ativando seu plano...';
+
+      const res = await fetch('/api/confirm-pix', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.token}`
+        },
+        body: JSON.stringify({
+          plan: state.currentSelectedPlan,
+          txId: state.currentPixTxId
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        state.user = data.user;
+        updateAuthUI();
+        dom.modalPricing.classList.add('hidden');
+        handleBackToPlans();
+        showToast('🎉 Pagamento confirmado! Seu plano/créditos foram ativados com sucesso.');
+      } else {
+        showToast(data.message || 'Não foi possível confirmar o plano agora.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao confirmar plano:', err);
+      showToast('Erro ao confirmar pagamento.', 'error');
+    } finally {
+      dom.btnConfirmPayment.disabled = false;
+      dom.btnConfirmPayment.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Já realizei o pagamento Pix</span>';
+    }
+  }
+
+  // ==========================================
+  // UPLOAD DE ARQUIVOS E GRAVAÇÃO
   // ==========================================
   function setAudioFile(file) {
     if (!file) return;
 
+    // Checagem básica de tamanho (100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      showToast('O arquivo excede o limite máximo permitido de 100 MB.', 'error');
+      return;
+    }
+
     state.selectedFile = file;
-    state.recordedBlob = null; // Limpa gravado anterior se houver
-    dom.recordAudioPreview.classList.add('hidden');
+    state.recordedBlob = null;
 
+    // Atualiza preview
     dom.fileName.textContent = file.name;
-    dom.fileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    const mbSize = (file.size / (1024 * 1024)).toFixed(1);
+    dom.fileSize.textContent = `${mbSize} MB`;
 
-    // Atualiza preview de áudio
+    // Carrega no player
     const objectUrl = URL.createObjectURL(file);
     dom.audioElement.src = objectUrl;
 
     dom.dropZone.classList.add('hidden');
     dom.filePreview.classList.remove('hidden');
+
+    showToast(`Áudio "${file.name}" carregado com sucesso.`);
   }
 
   function removeAudioFile() {
     state.selectedFile = null;
     dom.fileInput.value = '';
     dom.audioElement.src = '';
-    dom.filePreview.classList.add('hidden');
     dom.dropZone.classList.remove('hidden');
+    dom.filePreview.classList.add('hidden');
   }
 
-  // ==========================================
-  // GRAVAÇÃO DE MICROFONE AO VIVO
-  // ==========================================
   async function toggleRecording() {
     if (state.isRecording) {
       stopRecording();
@@ -311,31 +551,30 @@ document.addEventListener('DOMContentLoaded', () => {
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-        mimeType = 'audio/ogg;codecs=opus';
-      }
+      const chunks = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
 
       state.mediaRecorder = new MediaRecorder(stream, { mimeType });
-      const chunks = [];
-
       state.mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
+        if (e.data.size > 0) chunks.push(e.data);
       };
 
       state.mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: mimeType });
         state.recordedBlob = blob;
-        state.selectedFile = new File([blob], `gravacao-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`, { type: mimeType });
-        
-        dom.recordAudioElement.src = URL.createObjectURL(blob);
+
+        const file = new File([blob], `gravacao-${Date.now()}.${mimeType.includes('webm') ? 'webm' : 'ogg'}`, {
+          type: mimeType
+        });
+        state.selectedFile = file;
+
+        // Player de preview da gravação
+        const url = URL.createObjectURL(blob);
+        dom.recordAudioElement.src = url;
         dom.recordAudioPreview.classList.remove('hidden');
-        dom.recordStatus.textContent = 'Gravação concluída! Pronto para transcrever.';
-        
-        // Desliga tracks do microfone
+
         stream.getTracks().forEach(track => track.stop());
+        showToast('Gravação concluída e pronta para transcrever!');
       };
 
       state.mediaRecorder.start();
@@ -357,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (err) {
       console.error('Erro ao acessar microfone:', err);
-      showToast('Permissão de microfone negada ou indisponível.', 'error');
+      showToast('Permissão de microfone negada ou microfone indisponível.', 'error');
     }
   }
 
@@ -370,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.btnRecordToggle.classList.remove('recording-active', 'bg-rose-700');
     dom.recordIcon.className = 'fa-solid fa-microphone text-white';
     dom.recordPulse.classList.add('hidden');
+    dom.recordStatus.textContent = 'Gravação finalizada. Pronto para transcrever!';
   }
 
   function updateRecordTimerUI() {
@@ -379,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // TRANSCRIÇÃO DE ÁUDIO (CHAMADA PRINCIPAL)
+  // TRANSCRIÇÃO DE ÁUDIO COM IA
   // ==========================================
   async function handleTranscribe() {
     const file = state.selectedFile;
@@ -388,60 +628,83 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const apiKey = getStoredApiKey();
-    if (!apiKey && !state.serverHasApiKey) {
-      dom.modalKey.classList.remove('hidden');
-      showKeyFeedback('Informe sua chave da API Gemini para continuar.', 'error');
+    // Validação de autenticação
+    if (!state.user || !state.token) {
+      openAuthModal('register', '🎁 Cadastre-se gratuitamente em 10 segundos para testar! Você ganha 1 crédito grátis.');
+      return;
+    }
+
+    // Validação de créditos do usuário
+    const hasActiveSubscription = state.user.plan === 'pro' || state.user.plan === 'unlimited';
+    const hasCredits = (state.user.credits || 0) > 0;
+
+    if (!hasActiveSubscription && !hasCredits) {
+      handleBackToPlans();
+      dom.modalPricing.classList.remove('hidden');
+      showToast('Você utilizou seu crédito gratuito! Escolha um plano para continuar transcrevendo.', 'error');
       return;
     }
 
     // Prepara Form Data
     const formData = new FormData();
     formData.append('audio', file);
-    if (apiKey) formData.append('apiKey', apiKey);
     formData.append('model', dom.selectModel.value);
     formData.append('outputFormat', dom.selectOutputFormat ? dom.selectOutputFormat.value : 'summary_points');
     formData.append('detectSpeakers', dom.checkSpeakers.checked);
     formData.append('includeTimestamps', dom.checkTimestamps.checked);
-    formData.append('generateSummary', dom.checkSummary.checked);
     formData.append('targetLanguage', dom.selectLanguage.value);
     formData.append('customInstructions', dom.customInstructions.value);
 
-    // Atualiza UI de Loading
+    // Inicia UI de processamento
     startLoadingAnimation();
 
     try {
       const response = await fetch('/api/transcribe', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${state.token}`
+        },
         body: formData
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        if (data.error === 'CREDITS_EXHAUSTED') {
+          handleBackToPlans();
+          dom.modalPricing.classList.remove('hidden');
+          throw new Error('Seus créditos esgotaram. Escolha um plano para continuar.');
+        }
+        if (data.error === 'AUTH_REQUIRED' || data.error === 'INVALID_TOKEN') {
+          state.user = null;
+          state.token = null;
+          localStorage.removeItem('trw_auth_token');
+          updateAuthUI();
+          openAuthModal('login', 'Sua sessão expirou. Entre novamente.');
+          throw new Error('Sessão expirada. Entre novamente.');
+        }
         throw new Error(data.error || 'Falha ao processar áudio.');
       }
 
-      // Sucesso!
+      // Sucesso! Atualiza créditos na UI
+      if (data.remainingCredits !== undefined) {
+        state.user.credits = data.remainingCredits;
+        updateAuthUI();
+      }
+
       displayTranscriptionResult(data);
-      saveToHistory(data);
+      loadUserHistory();
       showToast('Transcrição concluída com sucesso!');
 
     } catch (error) {
       console.error('Erro na transcrição:', error);
       showToast(error.message || 'Erro durante a transcrição.', 'error');
-      
-      // Se for erro de autenticação, abre modal da chave
-      if (error.message.includes('API_KEY_INVALID') || error.message.includes('Chave da API')) {
-        dom.modalKey.classList.remove('hidden');
-        showKeyFeedback('A chave fornecida parece inválida ou expirou. Verifique.', 'error');
-      }
     } finally {
       stopLoadingAnimation();
     }
   }
 
-  // Animação de Loading com Etapas
+  // Animação de Loading Inteligente
   let loadingStepsInterval = null;
   function startLoadingAnimation() {
     dom.btnTranscribe.disabled = true;
@@ -452,10 +715,10 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.paneResSRT.classList.add('hidden');
 
     const steps = [
-      { title: 'Enviando áudio...', sub: 'Fazendo upload seguro para processamento' },
-      { title: 'Gemini ouvindo áudio...', sub: 'Reconhecendo vozes, entonação e palavras' },
-      { title: 'Formatando falas...', sub: 'Aplicando pontuação e organizando parágrafos' },
-      { title: 'Finalizando detalhes...', sub: 'Gerando resumos e marcações de tempo' }
+      { title: 'Enviando áudio...', sub: 'Fazendo upload seguro para processamento com IA' },
+      { title: 'Transcrevendo áudio...', sub: 'Reconhecendo vozes, entonação e palavras com alta fidelidade' },
+      { title: 'Formatando falas e parágrafos...', sub: 'Aplicando pontuação e organizando os falantes' },
+      { title: 'Finalizando relatório executivo...', sub: 'Gerando atas, resumos e marcações de tempo' }
     ];
 
     let stepIndex = 0;
@@ -466,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stepIndex = (stepIndex + 1) % steps.length;
       dom.loadingTitle.textContent = steps[stepIndex].title;
       dom.loadingSubtitle.textContent = steps[stepIndex].sub;
-    }, 4500);
+    }, 4000);
   }
 
   function stopLoadingAnimation() {
@@ -485,9 +748,9 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.transcriptionTextArea.value = transcription;
 
     // Resumo & Ações
-    dom.summaryContent.textContent = data.summary || 'Nenhum resumo solicitado ou gerado.';
+    dom.summaryContent.textContent = data.summary || 'Resumo gerado na íntegra da transcrição.';
     dom.keyPointsContent.textContent = data.keyPoints || 'Nenhum ponto registrado.';
-    dom.actionItemsContent.textContent = data.actionItems || 'Nenhuma ação detectada.';
+    dom.actionItemsContent.textContent = data.actionItems || 'Nenhuma ação pendente identificada.';
 
     // Geração de Legendas SRT
     const srtText = generateSRT(transcription);
@@ -498,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Rodapé
     dom.footerFileName.textContent = data.fileName || 'áudio';
-    dom.footerModel.textContent = `Modelo: ${data.modelUsed || 'Gemini 3.8'}`;
+    dom.footerModel.textContent = `Modelo: ${data.modelUsed || 'Gemini 3.8 Flash'}`;
     dom.resultFooter.classList.remove('hidden');
 
     // Mostra painel de transcrição
@@ -509,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const trimmed = text.trim();
     const words = trimmed ? trimmed.split(/\s+/).length : 0;
     const chars = text.length;
-    dom.wordCountLabel.textContent = `${words.toLocaleString()} palavras • ${chars.toLocaleString()} caracteres`;
+    dom.wordCountLabel.textContent = `${words.toLocaleString('pt-BR')} palavras • ${chars.toLocaleString('pt-BR')} caracteres`;
   }
 
   // Gera formato SRT a partir do texto
@@ -558,19 +821,19 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.paneResSummary.classList.add('hidden');
     dom.paneResSRT.classList.add('hidden');
 
-    dom.resTabTranscribe.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center gap-2 transition';
-    dom.resTabSummary.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center gap-2 transition';
-    dom.resTabSRT.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center gap-2 transition';
+    dom.resTabTranscribe.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-1.5 transition';
+    dom.resTabSummary.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-1.5 transition';
+    dom.resTabSRT.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center gap-1.5 transition';
 
     if (tab === 'transcribe') {
       dom.paneResTranscribe.classList.remove('hidden');
-      dom.resTabTranscribe.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-2 transition';
+      dom.resTabTranscribe.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs flex items-center gap-1.5 transition';
     } else if (tab === 'summary') {
       dom.paneResSummary.classList.remove('hidden');
-      dom.resTabSummary.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-2 transition';
+      dom.resTabSummary.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs flex items-center gap-1.5 transition';
     } else if (tab === 'srt') {
       dom.paneResSRT.classList.remove('hidden');
-      dom.resTabSRT.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-2 transition';
+      dom.resTabSRT.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs flex items-center gap-1.5 transition';
     }
   }
 
@@ -588,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     dom.downloadMenu.classList.add('hidden');
-    showToast(`Arquivo ${fileName} baixado!`);
+    showToast(`Arquivo "${fileName}" baixado com sucesso!`);
   }
 
   function handleCopy() {
@@ -604,14 +867,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Gera Relatório Formatado em PDF
+  // Gera Relatório Corporativo Formatado em PDF
   async function handleExportPDF() {
     if (!dom.transcriptionTextArea.value.trim()) {
       showToast('Nenhum resultado para exportar em PDF.', 'error');
       return;
     }
 
-    showToast('Gerando PDF profissional com formatação...');
+    showToast('Gerando PDF executivo com formatação...');
 
     const data = state.currentResult || {};
     const fileName = data.fileName || (state.selectedFile ? state.selectedFile.name : 'audio');
@@ -623,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const wordCount = transcription.trim() ? transcription.trim().split(/\s+/).length : 0;
 
-    // Constrói container para renderização do PDF
+    // Container de renderização do PDF
     const container = document.createElement('div');
     container.style.padding = '30px';
     container.style.fontFamily = "'Inter', Arial, sans-serif";
@@ -636,217 +899,157 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="border-bottom: 3px solid #1d4ed8; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="/assets/icon.png" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;" alt="Logo">
+            <img src="/assets/icon.png" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover;" alt="Logo">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">Transcritor do Will</h1>
                 <span style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase;">transcritordowill</span>
               </div>
-              <p style="font-size: 11px; color: #64748b; margin: 3px 0 0 0; font-weight: 500;">Relatório Executivo de Transcrição & Análise • Google Gemini</p>
+              <p style="font-size: 11px; color: #64748b; margin: 3px 0 0 0; font-weight: 500;">Relatório Executivo de Transcrição & Análise de Áudio</p>
             </div>
           </div>
         </div>
         <div style="text-align: right; font-size: 10px; color: #64748b;">
           <div><strong>Data:</strong> ${dateStr}</div>
           <div><strong>Arquivo:</strong> ${fileName}</div>
+          <div><strong>Volume:</strong> ${wordCount.toLocaleString('pt-BR')} palavras</div>
         </div>
-      </div>
-
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; color: #334155;">
-        <div><strong>Arquivo:</strong> ${fileName}</div>
-        <div><strong>Motor de IA:</strong> ${data.modelUsed || 'Gemini 3.8 Flash'}</div>
-        <div><strong>Total de Palavras:</strong> ${wordCount.toLocaleString()}</div>
       </div>
     `;
 
+    // Resumo Executivo
     if (summary && !summary.includes('Nenhum')) {
       html += `
-        <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 800; color: #1e3a8a; border-left: 4px solid #1d4ed8; padding-left: 8px; margin-bottom: 8px;">
-            📌 Resumo Executivo
+        <div style="background: #f8fafc; border-left: 4px solid #1d4ed8; padding: 14px 16px; border-radius: 6px; margin-bottom: 18px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #1d4ed8; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+            Resumo Executivo
           </h2>
-          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px; font-size: 11px; color: #1e293b; white-space: pre-wrap; line-height: 1.6;">${summary}</div>
+          <div style="font-size: 11.5px; color: #334155; white-space: pre-line; line-height: 1.6;">${escapeHtml(summary)}</div>
         </div>
       `;
     }
 
+    // Pontos-Chave
     if (keyPoints && !keyPoints.includes('Nenhum')) {
       html += `
-        <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 800; color: #065f46; border-left: 4px solid #10b981; padding-left: 8px; margin-bottom: 8px;">
-            💡 Pontos-Chave & Tópicos Discutidos
+        <div style="background: #f8fafc; border-left: 4px solid #334155; padding: 14px 16px; border-radius: 6px; margin-bottom: 18px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+            Pontos-Chave & Decisões
           </h2>
-          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 12px; font-size: 11px; color: #064e3b; white-space: pre-wrap; line-height: 1.6;">${keyPoints}</div>
+          <div style="font-size: 11.5px; color: #334155; white-space: pre-line; line-height: 1.6;">${escapeHtml(keyPoints)}</div>
         </div>
       `;
     }
 
+    // Próximos Passos
     if (actionItems && !actionItems.includes('Nenhuma')) {
       html += `
-        <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 800; color: #92400e; border-left: 4px solid #f59e0b; padding-left: 8px; margin-bottom: 8px;">
-            📋 Próximos Passos & Deliberações
+        <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 16px; border-radius: 6px; margin-bottom: 22px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #15803d; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+            Próximos Passos & Ações
           </h2>
-          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px; font-size: 11px; color: #78350f; white-space: pre-wrap; line-height: 1.6;">${actionItems}</div>
+          <div style="font-size: 11.5px; color: #166534; white-space: pre-line; line-height: 1.6;">${escapeHtml(actionItems)}</div>
         </div>
       `;
     }
 
+    // Transcrição Integral
     html += `
-      <div style="margin-top: 20px;">
-        <h2 style="font-size: 13px; font-weight: 800; color: #0f172a; border-left: 4px solid #475569; padding-left: 8px; margin-bottom: 8px;">
-          📝 Transcrição Integral do Áudio
+      <div style="margin-top: 10px;">
+        <h2 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+          Transcrição Integral do Áudio
         </h2>
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 11px; color: #1e293b; line-height: 1.7; white-space: pre-wrap;">${transcription}</div>
+        <div style="font-size: 11px; color: #1e293b; white-space: pre-line; line-height: 1.7;">${escapeHtml(transcription)}</div>
       </div>
+    `;
 
-      <div style="margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 9px; color: #94a3b8;">
-        Relatório gerado por Transcritor do Will • transcritordowill • Todos os direitos reservados
+    // Rodapé do PDF
+    html += `
+      <div style="margin-top: 30px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between;">
+        <span>Gerado com Transcritor do Will • Alta Fidelidade</span>
+        <span>transcritordowill.onrender.com</span>
       </div>
     `;
 
     container.innerHTML = html;
+    document.body.appendChild(container);
 
     const opt = {
       margin: [10, 10, 10, 10],
-      filename: `Relatorio-Transcricao-${cleanName}.pdf`,
+      filename: `${cleanName}-relatorio-transcritordowill.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     try {
-      if (window.html2pdf) {
-        await window.html2pdf().set(opt).from(container).save();
-        showToast('Relatório PDF baixado com sucesso!');
-      } else {
-        window.print();
-      }
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      window.print();
+      await html2pdf().set(opt).from(container).save();
+      showToast('PDF gerado e baixado com sucesso!');
+    } catch (e) {
+      console.error('Erro ao gerar PDF:', e);
+      showToast('Erro ao exportar PDF.', 'error');
+    } finally {
+      document.body.removeChild(container);
     }
   }
 
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+  }
+
   // ==========================================
-  // CHECKOUT PIX & PLANOS
+  // HISTÓRICO PRIVADO DO USUÁRIO
   // ==========================================
-  async function handleSelectPlan(planKey) {
+  async function loadUserHistory() {
+    if (!state.token) {
+      state.history = [];
+      renderHistoryList();
+      return;
+    }
+
     try {
-      showToast('Gerando cobrança Pix...', 'info');
-      const res = await fetch('/api/create-pix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planKey })
+      const res = await fetch('/api/history', {
+        headers: { 'Authorization': `Bearer ${state.token}` }
       });
       const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao gerar Pix');
+      if (res.ok && data.success) {
+        state.history = data.history || [];
+        renderHistoryList();
       }
-
-      // Exibe view de checkout
-      dom.pricingPlansView.classList.add('hidden');
-      dom.pricingCheckoutView.classList.remove('hidden');
-
-      dom.checkoutPlanBadge.textContent = data.planTitle;
-      dom.checkoutPlanTitle.textContent = data.planTitle;
-      dom.checkoutAmountText.textContent = `R$ ${Number(data.amount).toFixed(2).replace('.', ',')}`;
-      dom.pixQrCodeImg.src = data.qrCodeDataUrl;
-      dom.inputPixCode.value = data.pixCode;
-
-      showToast('QR Code Pix gerado com sucesso!');
     } catch (err) {
-      console.error('Erro ao gerar Pix:', err);
-      showToast('Não foi possível gerar a cobrança Pix no momento.', 'error');
+      console.warn('Erro ao carregar histórico:', err);
     }
-  }
-
-  function handleBackToPlans() {
-    dom.pricingCheckoutView.classList.add('hidden');
-    dom.pricingPlansView.classList.remove('hidden');
-  }
-
-  function handleCopyPix() {
-    const code = dom.inputPixCode.value;
-    if (!code) return;
-    navigator.clipboard.writeText(code).then(() => {
-      dom.btnCopyPixCode.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
-      showToast('Código Pix Copia e Cola copiado com sucesso!');
-      setTimeout(() => {
-        dom.btnCopyPixCode.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Copiar</span>';
-      }, 3000);
-    });
-  }
-
-  function handleConfirmPayment() {
-    localStorage.setItem('transcritor_plan_active', 'true');
-    showToast('Pagamento Pix registrado! Seu plano foi ativado.');
-    setTimeout(() => {
-      dom.modalPricing.classList.add('hidden');
-      handleBackToPlans();
-    }, 1600);
-  }
-
-  // ==========================================
-  // HISTÓRICO LOCAL
-  // ==========================================
-  function loadHistory() {
-    try {
-      const stored = localStorage.getItem('transcription_history');
-      state.history = stored ? JSON.parse(stored) : [];
-      renderHistoryList();
-    } catch (e) {
-      state.history = [];
-    }
-  }
-
-  function saveToHistory(data) {
-    const item = {
-      id: Date.now(),
-      date: new Date().toLocaleString('pt-BR'),
-      fileName: data.fileName || 'áudio',
-      modelUsed: data.modelUsed,
-      transcription: data.transcription,
-      summary: data.summary,
-      keyPoints: data.keyPoints,
-      actionItems: data.actionItems,
-      words: data.transcription ? data.transcription.split(/\s+/).length : 0
-    };
-
-    state.history.unshift(item);
-    if (state.history.length > 20) state.history.pop(); // Mantém os últimos 20
-    localStorage.setItem('transcription_history', JSON.stringify(state.history));
-    renderHistoryList();
   }
 
   function renderHistoryList() {
     if (!dom.historyList) return;
     if (state.history.length === 0) {
-      dom.historyList.innerHTML = '<p class="text-slate-500 text-center py-8">Nenhuma transcrição salva no histórico.</p>';
+      dom.historyList.innerHTML = '<p class="text-chumbo-400 text-center py-8">Nenhuma transcrição salva no histórico.</p>';
       return;
     }
 
     dom.historyList.innerHTML = state.history.map(item => `
-      <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-indigo-500/50 transition cursor-pointer group" data-history-id="${item.id}">
+      <div class="p-3.5 rounded-xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 hover:border-royal-500/50 transition cursor-pointer group" data-history-id="${item.id}">
         <div class="flex items-center justify-between mb-1.5">
           <div class="flex items-center gap-2 overflow-hidden">
-            <i class="fa-solid fa-file-lines text-indigo-400 shrink-0"></i>
-            <span class="font-semibold text-slate-200 truncate group-hover:text-indigo-300 transition">${item.fileName}</span>
+            <i class="fa-solid fa-file-lines text-royal-700 dark:text-royal-400 shrink-0"></i>
+            <span class="font-bold text-chumbo-900 dark:text-chumbo-100 truncate group-hover:text-royal-600 dark:group-hover:text-royal-400 transition">${item.fileName}</span>
           </div>
-          <span class="text-[10px] text-slate-500 shrink-0">${item.date}</span>
+          <span class="text-[10px] text-chumbo-400 shrink-0">${item.date}</span>
         </div>
-        <p class="text-[11px] text-slate-400 line-clamp-2">${item.transcription.slice(0, 160)}...</p>
-        <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
-          <span>${item.words.toLocaleString()} palavras</span>
-          <button class="btn-delete-history text-slate-500 hover:text-rose-400 p-1" data-id="${item.id}" title="Excluir">
+        <p class="text-[11px] text-chumbo-500 dark:text-chumbo-400 line-clamp-2">${(item.transcription || '').slice(0, 160)}...</p>
+        <div class="mt-2.5 flex items-center justify-between text-[10px] text-chumbo-400 border-t border-chumbo-200/50 dark:border-chumbo-800/50 pt-1.5">
+          <span>${(item.words || 0).toLocaleString('pt-BR')} palavras</span>
+          <button class="btn-delete-history text-chumbo-400 hover:text-rose-600 dark:hover:text-rose-400 p-1" data-id="${item.id}" title="Excluir">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </div>
       </div>
     `).join('');
 
-    // Eventos nos itens do histórico
+    // Eventos de clique nos itens do histórico
     dom.historyList.querySelectorAll('[data-history-id]').forEach(el => {
       el.addEventListener('click', (e) => {
         if (e.target.closest('.btn-delete-history')) return;
@@ -860,14 +1063,24 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    // Evento de exclusão de item individual
     dom.historyList.querySelectorAll('.btn-delete-history').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = parseInt(btn.getAttribute('data-id'), 10);
-        state.history = state.history.filter(h => h.id !== id);
-        localStorage.setItem('transcription_history', JSON.stringify(state.history));
-        renderHistoryList();
-        showToast('Item removido do histórico');
+        if (!state.token) return;
+
+        try {
+          await fetch(`/api/history/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          state.history = state.history.filter(h => h.id !== id);
+          renderHistoryList();
+          showToast('Item removido do histórico.');
+        } catch (err) {
+          showToast('Erro ao remover item.', 'error');
+        }
       });
     });
   }
@@ -877,18 +1090,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   let toastTimeout = null;
   function showToast(message, type = 'success') {
+    if (!dom.toastMessage || !dom.toast) return;
     dom.toastMessage.textContent = message;
+
     if (type === 'error') {
       dom.toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-base';
-      dom.toast.className = 'fixed bottom-6 right-6 bg-slate-900 border border-rose-500/40 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
+      dom.toast.className = 'fixed bottom-6 right-6 bg-chumbo-900 dark:bg-chumbo-950 border border-rose-500/40 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
     } else {
       dom.toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
-      dom.toast.className = 'fixed bottom-6 right-6 bg-slate-900 border border-emerald-500/40 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
+      dom.toast.className = 'fixed bottom-6 right-6 bg-chumbo-900 dark:bg-chumbo-950 border border-emerald-500/40 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100';
     }
 
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
-      dom.toast.className = 'fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none';
+      dom.toast.className = 'fixed bottom-6 right-6 bg-chumbo-900 dark:bg-chumbo-950 border border-chumbo-800 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none';
     }, 3500);
   }
 
@@ -901,6 +1116,56 @@ document.addEventListener('DOMContentLoaded', () => {
       dom.btnToggleTheme.addEventListener('click', toggleTheme);
     }
 
+    // Autenticação: Botões Header
+    if (dom.btnOpenLogin) {
+      dom.btnOpenLogin.addEventListener('click', () => openAuthModal('login'));
+    }
+    if (dom.btnOpenRegister) {
+      dom.btnOpenRegister.addEventListener('click', () => openAuthModal('register'));
+    }
+    if (dom.btnLogout) {
+      dom.btnLogout.addEventListener('click', handleLogout);
+    }
+
+    // Modal Autenticação
+    if (dom.btnCloseAuthModal) {
+      dom.btnCloseAuthModal.addEventListener('click', closeAuthModal);
+    }
+    if (dom.tabAuthLogin) {
+      dom.tabAuthLogin.addEventListener('click', () => switchAuthTab('login'));
+    }
+    if (dom.tabAuthRegister) {
+      dom.tabAuthRegister.addEventListener('click', () => switchAuthTab('register'));
+    }
+    if (dom.btnSwitchToRegister) {
+      dom.btnSwitchToRegister.addEventListener('click', () => switchAuthTab('register'));
+    }
+    if (dom.btnSwitchToLogin) {
+      dom.btnSwitchToLogin.addEventListener('click', () => switchAuthTab('login'));
+    }
+    if (dom.formLogin) {
+      dom.formLogin.addEventListener('submit', handleLoginSubmit);
+    }
+    if (dom.formRegister) {
+      dom.formRegister.addEventListener('submit', handleRegisterSubmit);
+    }
+
+    // Toggles de Visibilidade de Senha
+    if (dom.btnToggleLoginPass) {
+      dom.btnToggleLoginPass.addEventListener('click', () => {
+        const isPass = dom.loginPassword.type === 'password';
+        dom.loginPassword.type = isPass ? 'text' : 'password';
+        dom.btnToggleLoginPass.innerHTML = isPass ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
+      });
+    }
+    if (dom.btnToggleRegisterPass) {
+      dom.btnToggleRegisterPass.addEventListener('click', () => {
+        const isPass = dom.registerPassword.type === 'password';
+        dom.registerPassword.type = isPass ? 'text' : 'password';
+        dom.btnToggleRegisterPass.innerHTML = isPass ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
+      });
+    }
+
     // Modal de Planos & Pagamento Pix
     if (dom.btnOpenPricingModal) {
       dom.btnOpenPricingModal.addEventListener('click', () => {
@@ -908,25 +1173,26 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.modalPricing.classList.remove('hidden');
       });
     }
-
+    if (dom.btnUserPlanBadge) {
+      dom.btnUserPlanBadge.addEventListener('click', () => {
+        handleBackToPlans();
+        dom.modalPricing.classList.remove('hidden');
+      });
+    }
     if (dom.btnClosePricingModal) {
       dom.btnClosePricingModal.addEventListener('click', () => {
         dom.modalPricing.classList.add('hidden');
       });
     }
-
     if (dom.btnBackToPlans) {
       dom.btnBackToPlans.addEventListener('click', handleBackToPlans);
     }
-
     if (dom.btnCopyPixCode) {
       dom.btnCopyPixCode.addEventListener('click', handleCopyPix);
     }
-
     if (dom.btnConfirmPayment) {
       dom.btnConfirmPayment.addEventListener('click', handleConfirmPayment);
     }
-
     document.querySelectorAll('.btn-select-plan').forEach(btn => {
       btn.addEventListener('click', () => {
         const plan = btn.getAttribute('data-plan') || 'pro';
@@ -934,167 +1200,189 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Modal Chave API
-    dom.btnOpenKeyModal.addEventListener('click', () => {
-      dom.modalKey.classList.remove('hidden');
-    });
-
-    dom.btnCloseKeyModal.addEventListener('click', () => {
-      dom.modalKey.classList.add('hidden');
-    });
-
-    dom.btnToggleKeyVisibility.addEventListener('click', () => {
-      const isPassword = dom.inputApiKey.type === 'password';
-      dom.inputApiKey.type = isPassword ? 'text' : 'password';
-      dom.btnToggleKeyVisibility.innerHTML = isPassword ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
-    });
-
-    dom.btnSaveKey.addEventListener('click', handleSaveKey);
-    dom.btnClearKey.addEventListener('click', handleClearKey);
-
     // Modal Histórico
-    dom.btnOpenHistory.addEventListener('click', () => {
-      renderHistoryList();
-      dom.modalHistory.classList.remove('hidden');
-    });
-
-    dom.btnCloseHistoryModal.addEventListener('click', () => {
-      dom.modalHistory.classList.add('hidden');
-    });
-
-    dom.btnClearAllHistory.addEventListener('click', () => {
-      if (confirm('Deseja realmente limpar todo o histórico de transcrições?')) {
-        state.history = [];
-        localStorage.removeItem('transcription_history');
-        renderHistoryList();
-        showToast('Histórico limpo');
-      }
-    });
+    if (dom.btnOpenHistory) {
+      dom.btnOpenHistory.addEventListener('click', () => {
+        if (!state.user) {
+          openAuthModal('login', 'Faça login para ver seu histórico privado de transcrições.');
+          return;
+        }
+        loadUserHistory();
+        dom.modalHistory.classList.remove('hidden');
+      });
+    }
+    if (dom.btnCloseHistoryModal) {
+      dom.btnCloseHistoryModal.addEventListener('click', () => {
+        dom.modalHistory.classList.add('hidden');
+      });
+    }
+    if (dom.btnClearAllHistory) {
+      dom.btnClearAllHistory.addEventListener('click', async () => {
+        if (!state.token) return;
+        if (confirm('Deseja realmente limpar todo o seu histórico privado de transcrições?')) {
+          try {
+            await fetch('/api/history', {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${state.token}` }
+            });
+            state.history = [];
+            renderHistoryList();
+            showToast('Histórico limpo com sucesso.');
+          } catch (err) {
+            showToast('Erro ao limpar histórico.', 'error');
+          }
+        }
+      });
+    }
 
     // Abas de Entrada (Upload vs Gravar)
-    dom.tabUpload.addEventListener('click', () => {
-      dom.tabUpload.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 transition';
-      dom.tabRecord.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center justify-center gap-2 transition';
-      dom.paneUpload.classList.remove('hidden');
-      dom.paneRecord.classList.add('hidden');
-    });
-
-    dom.tabRecord.addEventListener('click', () => {
-      dom.tabRecord.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 transition';
-      dom.tabUpload.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center justify-center gap-2 transition';
-      dom.paneRecord.classList.remove('hidden');
-      dom.paneUpload.classList.add('hidden');
-    });
+    if (dom.tabUpload) {
+      dom.tabUpload.addEventListener('click', () => {
+        dom.tabUpload.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-sm flex items-center justify-center gap-2 transition';
+        dom.tabRecord.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center justify-center gap-2 transition';
+        dom.paneUpload.classList.remove('hidden');
+        dom.paneRecord.classList.add('hidden');
+      });
+    }
+    if (dom.tabRecord) {
+      dom.tabRecord.addEventListener('click', () => {
+        dom.tabRecord.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-sm flex items-center justify-center gap-2 transition';
+        dom.tabUpload.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white flex items-center justify-center gap-2 transition';
+        dom.paneRecord.classList.remove('hidden');
+        dom.paneUpload.classList.add('hidden');
+      });
+    }
 
     // Drag and Drop & Seleção de Arquivo
-    dom.dropZone.addEventListener('click', () => dom.fileInput.click());
+    if (dom.dropZone) {
+      dom.dropZone.addEventListener('click', () => dom.fileInput.click());
+      dom.dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dom.dropZone.classList.add('drag-over');
+      });
+      dom.dropZone.addEventListener('dragleave', () => {
+        dom.dropZone.classList.remove('drag-over');
+      });
+      dom.dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dom.dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          setAudioFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
 
-    dom.fileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        setAudioFile(e.target.files[0]);
-      }
-    });
+    if (dom.fileInput) {
+      dom.fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          setAudioFile(e.target.files[0]);
+        }
+      });
+    }
 
-    dom.dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dom.dropZone.classList.add('drag-over');
-    });
+    if (dom.btnRemoveFile) {
+      dom.btnRemoveFile.addEventListener('click', removeAudioFile);
+    }
 
-    dom.dropZone.addEventListener('dragleave', () => {
-      dom.dropZone.classList.remove('drag-over');
-    });
-
-    dom.dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dom.dropZone.classList.remove('drag-over');
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        setAudioFile(e.dataTransfer.files[0]);
-      }
-    });
-
-    dom.btnRemoveFile.addEventListener('click', removeAudioFile);
-
-    // Gravação ao Vivo
-    dom.btnRecordToggle.addEventListener('click', toggleRecording);
+    // Gravação Microfone
+    if (dom.btnRecordToggle) {
+      dom.btnRecordToggle.addEventListener('click', toggleRecording);
+    }
 
     // Botão Transcrever
-    dom.btnTranscribe.addEventListener('click', handleTranscribe);
+    if (dom.btnTranscribe) {
+      dom.btnTranscribe.addEventListener('click', handleTranscribe);
+    }
 
     // Abas de Resultado
-    dom.resTabTranscribe.addEventListener('click', () => switchResultTab('transcribe'));
-    dom.resTabSummary.addEventListener('click', () => switchResultTab('summary'));
-    dom.resTabSRT.addEventListener('click', () => switchResultTab('srt'));
+    if (dom.resTabTranscribe) dom.resTabTranscribe.addEventListener('click', () => switchResultTab('transcribe'));
+    if (dom.resTabSummary) dom.resTabSummary.addEventListener('click', () => switchResultTab('summary'));
+    if (dom.resTabSRT) dom.resTabSRT.addEventListener('click', () => switchResultTab('srt'));
 
     // Edição no Textarea de Transcrição
-    dom.transcriptionTextArea.addEventListener('input', () => {
-      updateWordCount(dom.transcriptionTextArea.value);
-      dom.srtTextArea.value = generateSRT(dom.transcriptionTextArea.value);
-    });
+    if (dom.transcriptionTextArea) {
+      dom.transcriptionTextArea.addEventListener('input', () => {
+        updateWordCount(dom.transcriptionTextArea.value);
+        dom.srtTextArea.value = generateSRT(dom.transcriptionTextArea.value);
+      });
+    }
 
-    // Ações de Resultado
+    // Ações de Exportação
     if (dom.btnExportPDF) {
       dom.btnExportPDF.addEventListener('click', handleExportPDF);
     }
-    dom.btnCopyText.addEventListener('click', handleCopy);
+    if (dom.btnCopyText) {
+      dom.btnCopyText.addEventListener('click', handleCopy);
+    }
 
-    dom.btnDownloadDropdown.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dom.downloadMenu.classList.toggle('hidden');
-    });
+    // Dropdown de Downloads
+    if (dom.btnDownloadDropdown) {
+      dom.btnDownloadDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.downloadMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => {
+        dom.downloadMenu.classList.add('hidden');
+      });
+    }
 
-    document.addEventListener('click', () => {
-      dom.downloadMenu.classList.add('hidden');
-    });
+    if (dom.btnDownloadTXT) {
+      dom.btnDownloadTXT.addEventListener('click', () => {
+        const text = dom.transcriptionTextArea.value;
+        const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'transcricao');
+        downloadFile(text, `${baseName}-transcricao.txt`, 'text/plain;charset=utf-8');
+      });
+    }
 
-    dom.btnDownloadTXT.addEventListener('click', () => {
-      const text = dom.transcriptionTextArea.value;
-      const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'transcricao');
-      downloadFile(text, `${baseName}-transcricao.txt`, 'text/plain;charset=utf-8');
-    });
+    if (dom.btnDownloadSRT) {
+      dom.btnDownloadSRT.addEventListener('click', () => {
+        const srt = dom.srtTextArea.value;
+        const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'legendas');
+        downloadFile(srt, `${baseName}.srt`, 'text/plain;charset=utf-8');
+      });
+    }
 
-    dom.btnDownloadSRT.addEventListener('click', () => {
-      const srt = dom.srtTextArea.value;
-      const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'legendas');
-      downloadFile(srt, `${baseName}.srt`, 'text/plain;charset=utf-8');
-    });
+    if (dom.btnDownloadMD) {
+      dom.btnDownloadMD.addEventListener('click', () => {
+        const text = dom.transcriptionTextArea.value;
+        const summary = dom.summaryContent ? dom.summaryContent.textContent : '';
+        const points = dom.keyPointsContent ? dom.keyPointsContent.textContent : '';
+        const actions = dom.actionItemsContent ? dom.actionItemsContent.textContent : '';
+        const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'transcricao');
 
-    dom.btnDownloadMD.addEventListener('click', () => {
-      const text = dom.transcriptionTextArea.value;
-      const summary = dom.summaryContent.textContent;
-      const points = dom.keyPointsContent.textContent;
-      const actions = dom.actionItemsContent.textContent;
-      const baseName = (state.selectedFile ? state.selectedFile.name.replace(/\.[^/.]+$/, '') : 'transcricao');
+        let md = `# Transcrição de Áudio: ${baseName}\n\n`;
+        md += `*Data: ${new Date().toLocaleString('pt-BR')}*\n\n`;
+        md += `## Transcrição Completa\n\n${text}\n\n`;
+        if (summary && !summary.includes('Nenhum')) {
+          md += `## Resumo Executivo\n\n${summary}\n\n`;
+        }
+        if (points && !points.includes('Nenhum')) {
+          md += `## Pontos-Chave & Decisões\n\n${points}\n\n`;
+        }
+        if (actions && !actions.includes('Nenhuma')) {
+          md += `## Próximos Passos & Ações\n\n${actions}\n\n`;
+        }
 
-      let md = `# Transcrição de Áudio: ${baseName}\n\n`;
-      md += `*Data: ${new Date().toLocaleString('pt-BR')}*\n\n`;
-      md += `## Transcrição Completa\n\n${text}\n\n`;
-      if (summary && !summary.includes('Nenhum')) {
-        md += `## Resumo Executivo\n\n${summary}\n\n`;
-      }
-      if (points && !points.includes('Nenhum')) {
-        md += `## Pontos-Chave & Decisões\n\n${points}\n\n`;
-      }
-      if (actions && !actions.includes('Nenhuma')) {
-        md += `## Próximos Passos & Ações\n\n${actions}\n\n`;
-      }
+        downloadFile(md, `${baseName}-relatorio.md`, 'text/markdown;charset=utf-8');
+      });
+    }
 
-      downloadFile(md, `${baseName}-relatorio.md`, 'text/markdown;charset=utf-8');
-    });
-
-    dom.btnPrint.addEventListener('click', () => {
-      window.print();
-    });
+    if (dom.btnPrint) {
+      dom.btnPrint.addEventListener('click', () => {
+        window.print();
+      });
+    }
 
     // Fechar modais com tecla ESC
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        dom.modalKey.classList.add('hidden');
-        dom.modalHistory.classList.add('hidden');
+        if (dom.modalAuth) dom.modalAuth.classList.add('hidden');
+        if (dom.modalHistory) dom.modalHistory.classList.add('hidden');
         if (dom.modalPricing) dom.modalPricing.classList.add('hidden');
       }
     });
   }
 
-  // Inicializa o app
+  // Inicializa a aplicação
   init();
 });

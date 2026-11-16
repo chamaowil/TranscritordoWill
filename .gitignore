@@ -4,6 +4,11 @@ node_modules/
 # Variáveis de ambiente sensíveis
 .env
 
+# Banco de dados e dados privados dos usuários
+data/
+*.sqlite
+*.db
+
 # Arquivos temporários de upload
 uploads/
 *.tmp

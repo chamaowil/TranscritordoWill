@@ -8,6 +8,8 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
+      - key: JWT_SECRET
+        generateValue: true
       - key: PIX_KEY
         value: wilsonbrenomkt@gmail.com
       - key: PIX_NAME

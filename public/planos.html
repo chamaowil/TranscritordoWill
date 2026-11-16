@@ -236,8 +236,13 @@
       applyTheme(isDark ? 'light' : 'dark');
     });
 
+    let currentPlan = 'pro';
+    let currentTxId = null;
+
     // Checkout Pix
     async function openPixCheckout(plan) {
+      currentPlan = plan;
+      const token = localStorage.getItem('trw_auth_token');
       try {
         const res = await fetch('/api/create-pix', {
           method: 'POST',
@@ -246,6 +251,7 @@
         });
         const data = await res.json();
         if (data.success) {
+          currentTxId = data.txId;
           document.getElementById('plansView').classList.add('hidden');
           document.getElementById('checkoutView').classList.remove('hidden');
           
@@ -276,8 +282,23 @@
       }, 2500);
     }
 
-    function confirmPayment() {
-      alert('Obrigado! Seu pagamento Pix foi registrado com sucesso. Você já pode utilizar o Transcritor do Will!');
+    async function confirmPayment() {
+      const token = localStorage.getItem('trw_auth_token');
+      if (token) {
+        try {
+          await fetch('/api/confirm-pix', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ plan: currentPlan, txId: currentTxId })
+          });
+        } catch(e) {
+          console.warn('Erro ao atualizar plano no servidor:', e);
+        }
+      }
+      alert('Obrigado! Seu pagamento Pix foi registrado com sucesso. Redirecionando para o Transcritor do Will!');
       window.location.href = '/';
     }
   </script>
