@@ -29,6 +29,26 @@ document.addEventListener('DOMContentLoaded', () => {
     keyStatusText: document.getElementById('keyStatusText'),
     noKeyWarning: document.getElementById('noKeyWarning'),
 
+    // Tema Dark / Light
+    btnToggleTheme: document.getElementById('btnToggleTheme'),
+    themeIcon: document.getElementById('themeIcon'),
+    themeText: document.getElementById('themeText'),
+
+    // Planos & Modal Pix
+    btnOpenPricingModal: document.getElementById('btnOpenPricingModal'),
+    btnClosePricingModal: document.getElementById('btnClosePricingModal'),
+    modalPricing: document.getElementById('modalPricing'),
+    pricingPlansView: document.getElementById('pricingPlansView'),
+    pricingCheckoutView: document.getElementById('pricingCheckoutView'),
+    btnBackToPlans: document.getElementById('btnBackToPlans'),
+    pixQrCodeImg: document.getElementById('pixQrCodeImg'),
+    checkoutPlanBadge: document.getElementById('checkoutPlanBadge'),
+    checkoutPlanTitle: document.getElementById('checkoutPlanTitle'),
+    checkoutAmountText: document.getElementById('checkoutAmountText'),
+    inputPixCode: document.getElementById('inputPixCode'),
+    btnCopyPixCode: document.getElementById('btnCopyPixCode'),
+    btnConfirmPayment: document.getElementById('btnConfirmPayment'),
+
     // History Modal
     btnOpenHistory: document.getElementById('btnOpenHistory'),
     btnCloseHistoryModal: document.getElementById('btnCloseHistoryModal'),
@@ -111,10 +131,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // INICIALIZAÇÃO
   // ==========================================
   async function init() {
+    initTheme();
     loadLocalApiKey();
     loadHistory();
     await checkServerStatus();
     setupEventListeners();
+  }
+
+  // ==========================================
+  // TEMA (MODO CLARO / MODO ESCURO)
+  // ==========================================
+  function initTheme() {
+    const savedTheme = localStorage.getItem('transcritor_theme') || 'light';
+    applyTheme(savedTheme);
+  }
+
+  function applyTheme(theme) {
+    const html = document.documentElement;
+    if (theme === 'dark') {
+      html.classList.add('dark');
+      if (dom.themeIcon) dom.themeIcon.className = 'fa-solid fa-sun text-amber-400 text-sm';
+      if (dom.themeText) dom.themeText.textContent = 'Claro';
+    } else {
+      html.classList.remove('dark');
+      if (dom.themeIcon) dom.themeIcon.className = 'fa-solid fa-moon text-chumbo-600 text-sm';
+      if (dom.themeText) dom.themeText.textContent = 'Escuro';
+    }
+    localStorage.setItem('transcritor_theme', theme);
+  }
+
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.contains('dark');
+    applyTheme(isDark ? 'light' : 'dark');
   }
 
   // Verifica status do servidor
@@ -587,11 +635,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let html = `
       <div style="border-bottom: 3px solid #1d4ed8; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">Transcritor do Will</h1>
-            <span style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase;">transcritordowill</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="/assets/icon.png" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;" alt="Logo">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">Transcritor do Will</h1>
+                <span style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase;">transcritordowill</span>
+              </div>
+              <p style="font-size: 11px; color: #64748b; margin: 3px 0 0 0; font-weight: 500;">Relatório Executivo de Transcrição & Análise • Google Gemini</p>
+            </div>
           </div>
-          <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">Relatório Executivo de Transcrição & Análise • Google Gemini</p>
         </div>
         <div style="text-align: right; font-size: 10px; color: #64748b;">
           <div><strong>Data:</strong> ${dateStr}</div>
@@ -673,6 +726,66 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Erro ao gerar PDF:', err);
       window.print();
     }
+  }
+
+  // ==========================================
+  // CHECKOUT PIX & PLANOS
+  // ==========================================
+  async function handleSelectPlan(planKey) {
+    try {
+      showToast('Gerando cobrança Pix...', 'info');
+      const res = await fetch('/api/create-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planKey })
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao gerar Pix');
+      }
+
+      // Exibe view de checkout
+      dom.pricingPlansView.classList.add('hidden');
+      dom.pricingCheckoutView.classList.remove('hidden');
+
+      dom.checkoutPlanBadge.textContent = data.planTitle;
+      dom.checkoutPlanTitle.textContent = data.planTitle;
+      dom.checkoutAmountText.textContent = `R$ ${Number(data.amount).toFixed(2).replace('.', ',')}`;
+      dom.pixQrCodeImg.src = data.qrCodeDataUrl;
+      dom.inputPixCode.value = data.pixCode;
+
+      showToast('QR Code Pix gerado com sucesso!');
+    } catch (err) {
+      console.error('Erro ao gerar Pix:', err);
+      showToast('Não foi possível gerar a cobrança Pix no momento.', 'error');
+    }
+  }
+
+  function handleBackToPlans() {
+    dom.pricingCheckoutView.classList.add('hidden');
+    dom.pricingPlansView.classList.remove('hidden');
+  }
+
+  function handleCopyPix() {
+    const code = dom.inputPixCode.value;
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      dom.btnCopyPixCode.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
+      showToast('Código Pix Copia e Cola copiado com sucesso!');
+      setTimeout(() => {
+        dom.btnCopyPixCode.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Copiar</span>';
+      }, 3000);
+    });
+  }
+
+  function handleConfirmPayment() {
+    localStorage.setItem('transcritor_plan_active', 'true');
+    showToast('Pagamento Pix registrado! Seu plano foi ativado.');
+    setTimeout(() => {
+      dom.modalPricing.classList.add('hidden');
+      handleBackToPlans();
+    }, 1600);
   }
 
   // ==========================================
@@ -783,6 +896,44 @@ document.addEventListener('DOMContentLoaded', () => {
   // EVENT LISTENERS
   // ==========================================
   function setupEventListeners() {
+    // Alternar Tema Escuro / Claro
+    if (dom.btnToggleTheme) {
+      dom.btnToggleTheme.addEventListener('click', toggleTheme);
+    }
+
+    // Modal de Planos & Pagamento Pix
+    if (dom.btnOpenPricingModal) {
+      dom.btnOpenPricingModal.addEventListener('click', () => {
+        handleBackToPlans();
+        dom.modalPricing.classList.remove('hidden');
+      });
+    }
+
+    if (dom.btnClosePricingModal) {
+      dom.btnClosePricingModal.addEventListener('click', () => {
+        dom.modalPricing.classList.add('hidden');
+      });
+    }
+
+    if (dom.btnBackToPlans) {
+      dom.btnBackToPlans.addEventListener('click', handleBackToPlans);
+    }
+
+    if (dom.btnCopyPixCode) {
+      dom.btnCopyPixCode.addEventListener('click', handleCopyPix);
+    }
+
+    if (dom.btnConfirmPayment) {
+      dom.btnConfirmPayment.addEventListener('click', handleConfirmPayment);
+    }
+
+    document.querySelectorAll('.btn-select-plan').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const plan = btn.getAttribute('data-plan') || 'pro';
+        handleSelectPlan(plan);
+      });
+    });
+
     // Modal Chave API
     dom.btnOpenKeyModal.addEventListener('click', () => {
       dom.modalKey.classList.remove('hidden');
@@ -939,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Escape') {
         dom.modalKey.classList.add('hidden');
         dom.modalHistory.classList.add('hidden');
+        if (dom.modalPricing) dom.modalPricing.classList.add('hidden');
       }
     });
   }

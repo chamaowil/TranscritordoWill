@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planos & Preços | Transcritor do Will</title>
+  
+  <link rel="icon" type="image/png" href="/assets/icon.png">
+
+  <!-- Tailwind CSS CDN com suporte a Dark Mode -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            royal: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            chumbo: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              400: '#94a3b8',
+              500: '#64748b',
+              600: '#475569',
+              700: '#334155',
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#0b0f19'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Icons & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-[#f8fafc] dark:bg-[#0b0f19] text-chumbo-900 dark:text-chumbo-100 min-h-screen font-sans selection:bg-royal-600 selection:text-white antialiased transition-colors duration-200">
+
+  <!-- Header -->
+  <header class="border-b border-chumbo-200 dark:border-chumbo-800 bg-white/95 dark:bg-chumbo-900/95 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-18 py-3.5 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <img src="/assets/icon.png" alt="Logo" class="w-10 h-10 rounded-xl shadow-md object-cover bg-royal-700">
+        <div>
+          <span class="font-extrabold text-lg text-chumbo-900 dark:text-white tracking-tight">Transcritor do Will</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-royal-50 dark:bg-royal-950 text-royal-700 dark:text-royal-300 border border-royal-200 dark:border-royal-800 ml-1.5 uppercase">Planos</span>
+        </div>
+      </a>
+
+      <div class="flex items-center gap-3">
+        <button id="btnToggleTheme" class="p-2 sm:px-3 text-xs font-semibold rounded-xl border border-chumbo-200 dark:border-chumbo-800 hover:bg-chumbo-100 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-300 transition">
+          <i id="themeIcon" class="fa-solid fa-moon"></i>
+        </button>
+        <a href="/" class="text-xs font-bold px-4 py-2 rounded-xl bg-royal-700 hover:bg-royal-800 text-white shadow-xs transition flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Acessar Aplicativo</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero & Tabela de Planos -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+    
+    <div id="plansView" class="space-y-10">
+      <div class="text-center max-w-xl mx-auto space-y-3">
+        <span class="text-xs font-extrabold uppercase px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 tracking-wider">
+          Pagamento Instantâneo via Pix
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-chumbo-900 dark:text-white tracking-tight">
+          Planos Transparentes e Sem Surpresas
+        </h2>
+        <p class="text-sm text-chumbo-500 dark:text-chumbo-400">
+          Transforme reuniões, depoimentos e áudios em transcrições perfeitas, resumos executivos e relatórios em PDF corporativos.
+        </p>
+      </div>
+
+      <!-- Grade de 3 Planos -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 max-w-5xl mx-auto">
+        
+        <!-- Plano 1: Avulso -->
+        <div class="rounded-3xl border border-chumbo-200 dark:border-chumbo-800 p-6 sm:p-7 bg-white dark:bg-chumbo-900 flex flex-col justify-between shadow-xs hover:border-chumbo-300 dark:hover:border-chumbo-700 transition">
+          <div class="space-y-4">
+            <span class="text-[11px] font-bold text-chumbo-500 dark:text-chumbo-400 uppercase tracking-wider">Uso Pontual</span>
+            <h3 class="text-xl font-bold text-chumbo-900 dark:text-white">Avulso</h3>
+            <div class="flex items-baseline gap-1">
+              <span class="text-sm font-semibold text-chumbo-500">R$</span>
+              <span class="text-4xl font-black text-chumbo-900 dark:text-white">9,90</span>
+              <span class="text-xs text-chumbo-500">/áudio</span>
+            </div>
+            <ul class="space-y-2.5 text-xs text-chumbo-600 dark:text-chumbo-300 pt-4 border-t border-chumbo-200 dark:border-chumbo-800">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> 1 Transcrição completa com pontuação</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Resumo Executivo em Tópicos</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Relatório Formatado em PDF</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Legendas SRT sincronizadas</li>
+            </ul>
+          </div>
+          <button onclick="openPixCheckout('single')" class="w-full mt-8 py-3 px-4 rounded-xl font-bold text-xs bg-chumbo-100 dark:bg-chumbo-800 hover:bg-chumbo-200 dark:hover:bg-chumbo-700 text-chumbo-900 dark:text-white transition">
+            Pagar Avulso com Pix
+          </button>
+        </div>
+
+        <!-- Plano 2: Pro Mensal (Destaque) -->
+        <div class="rounded-3xl border-2 border-royal-600 dark:border-royal-500 p-6 sm:p-7 bg-white dark:bg-chumbo-900 flex flex-col justify-between relative shadow-xl shadow-royal-600/10">
+          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-royal-700 text-white text-[10px] font-extrabold uppercase px-3.5 py-1 rounded-full tracking-wider shadow-sm">
+            Mais Recomendado
+          </div>
+          <div class="space-y-4 pt-1">
+            <span class="text-[11px] font-bold text-royal-700 dark:text-royal-400 uppercase tracking-wider">Profissionais & Especialistas</span>
+            <h3 class="text-xl font-bold text-chumbo-900 dark:text-white">Plano Pro</h3>
+            <div class="flex items-baseline gap-1">
+              <span class="text-sm font-semibold text-royal-700 dark:text-royal-400">R$</span>
+              <span class="text-4xl font-black text-chumbo-900 dark:text-white">29,90</span>
+              <span class="text-xs text-chumbo-500">/mês</span>
+            </div>
+            <ul class="space-y-2.5 text-xs text-chumbo-700 dark:text-chumbo-200 pt-4 border-t border-royal-100 dark:border-royal-950">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Até 10 Horas de Áudio por mês</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Atas de Reunião Corporativas</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Relatórios em PDF Ilimitados</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Identificação de Falantes (Diarização)</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Conteúdo pronto para Redes Sociais</li>
+            </ul>
+          </div>
+          <button onclick="openPixCheckout('pro')" class="w-full mt-8 py-3 px-4 rounded-xl font-bold text-xs bg-royal-700 hover:bg-royal-800 text-white shadow-md shadow-royal-700/25 transition">
+            Assinar Pro via Pix
+          </button>
+        </div>
+
+        <!-- Plano 3: Escritório / Equipes -->
+        <div class="rounded-3xl border border-chumbo-200 dark:border-chumbo-800 p-6 sm:p-7 bg-white dark:bg-chumbo-900 flex flex-col justify-between shadow-xs hover:border-chumbo-300 dark:hover:border-chumbo-700 transition">
+          <div class="space-y-4">
+            <span class="text-[11px] font-bold text-chumbo-500 dark:text-chumbo-400 uppercase tracking-wider">Escritórios & Empresas</span>
+            <h3 class="text-xl font-bold text-chumbo-900 dark:text-white">Ilimitado</h3>
+            <div class="flex items-baseline gap-1">
+              <span class="text-sm font-semibold text-chumbo-500">R$</span>
+              <span class="text-4xl font-black text-chumbo-900 dark:text-white">79,90</span>
+              <span class="text-xs text-chumbo-500">/mês</span>
+            </div>
+            <ul class="space-y-2.5 text-xs text-chumbo-600 dark:text-chumbo-300 pt-4 border-t border-chumbo-200 dark:border-chumbo-800">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Áudios e Horas Ilimitadas</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Todos os Templates Executivos</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Arquivos grandes até 100MB</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-600"></i> Suporte Prioritário VIP</li>
+            </ul>
+          </div>
+          <button onclick="openPixCheckout('unlimited')" class="w-full mt-8 py-3 px-4 rounded-xl font-bold text-xs bg-chumbo-900 dark:bg-royal-700 hover:bg-chumbo-800 dark:hover:bg-royal-800 text-white transition">
+            Contratar Ilimitado com Pix
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tela de Checkout Pix (Oculta por padrão) -->
+    <div id="checkoutView" class="hidden max-w-2xl mx-auto bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+      <div class="flex items-center justify-between pb-3 border-b border-chumbo-200 dark:border-chumbo-800">
+        <button onclick="backToPlans()" class="text-xs font-bold text-royal-700 dark:text-royal-400 hover:underline flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-left"></i> Voltar aos Planos
+        </button>
+        <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+          <i class="fa-solid fa-shield-halved"></i> Pagamento Seguro
+        </span>
+      </div>
+
+      <div class="text-center space-y-2">
+        <span id="ckPlanBadge" class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-royal-50 dark:bg-royal-950 text-royal-700 dark:text-royal-300 border border-royal-200 dark:border-royal-800">Plano Pro</span>
+        <h3 id="ckPlanTitle" class="text-2xl font-extrabold text-chumbo-900 dark:text-white">Plano Pro Mensal</h3>
+        <p class="text-xs text-chumbo-500">Valor total a pagar:</p>
+        <p id="ckAmount" class="text-3xl font-black text-emerald-600 dark:text-emerald-400">R$ 29,90</p>
+      </div>
+
+      <div class="p-6 bg-chumbo-50 dark:bg-chumbo-950 rounded-2xl border border-chumbo-200 dark:border-chumbo-800 text-center space-y-4">
+        <div class="w-56 h-56 mx-auto bg-white p-2 rounded-2xl border border-chumbo-200 shadow-sm flex items-center justify-center">
+          <img id="ckQrCode" src="" alt="QR Code Pix" class="w-full h-full object-contain">
+        </div>
+        <p class="text-xs text-chumbo-500">Aponte a câmera do aplicativo do seu banco para o QR Code acima</p>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-xs font-bold text-chumbo-700 dark:text-chumbo-300">Ou copie o código Pix Copia e Cola:</label>
+        <div class="flex gap-2">
+          <input type="text" id="ckPixInput" readonly class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3 py-2 text-xs font-mono text-chumbo-800 dark:text-chumbo-200 focus:outline-none">
+          <button onclick="copyPixCode()" id="btnCopyCode" class="shrink-0 px-4 py-2 rounded-xl bg-royal-700 hover:bg-royal-800 text-white font-bold text-xs flex items-center gap-1.5 transition">
+            <i class="fa-regular fa-copy"></i>
+            <span>Copiar</span>
+          </button>
+        </div>
+      </div>
+
+      <button onclick="confirmPayment()" class="w-full py-4 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>Já realizei o pagamento Pix</span>
+      </button>
+    </div>
+
+  </main>
+
+  <script>
+    // Gerenciamento de Tema
+    const html = document.documentElement;
+    const btnToggle = document.getElementById('btnToggleTheme');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function applyTheme(theme) {
+      if (theme === 'dark') {
+        html.classList.add('dark');
+        themeIcon.className = 'fa-solid fa-sun text-amber-400';
+      } else {
+        html.classList.remove('dark');
+        themeIcon.className = 'fa-solid fa-moon text-chumbo-600';
+      }
+      localStorage.setItem('transcritor_theme', theme);
+    }
+
+    const savedTheme = localStorage.getItem('transcritor_theme') || 'light';
+    applyTheme(savedTheme);
+
+    btnToggle.addEventListener('click', () => {
+      const isDark = html.classList.contains('dark');
+      applyTheme(isDark ? 'light' : 'dark');
+    });
+
+    // Checkout Pix
+    async function openPixCheckout(plan) {
+      try {
+        const res = await fetch('/api/create-pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('plansView').classList.add('hidden');
+          document.getElementById('checkoutView').classList.remove('hidden');
+          
+          document.getElementById('ckPlanBadge').textContent = data.planTitle;
+          document.getElementById('ckPlanTitle').textContent = data.planTitle;
+          document.getElementById('ckAmount').textContent = `R$ ${Number(data.amount).toFixed(2).replace('.', ',')}`;
+          document.getElementById('ckQrCode').src = data.qrCodeDataUrl;
+          document.getElementById('ckPixInput').value = data.pixCode;
+        }
+      } catch (e) {
+        alert('Erro ao gerar código Pix. Tente novamente.');
+      }
+    }
+
+    function backToPlans() {
+      document.getElementById('checkoutView').classList.add('hidden');
+      document.getElementById('plansView').classList.remove('hidden');
+    }
+
+    function copyPixCode() {
+      const input = document.getElementById('ckPixInput');
+      input.select();
+      navigator.clipboard.writeText(input.value);
+      const btn = document.getElementById('btnCopyCode');
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
+      setTimeout(() => {
+        btn.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Copiar</span>';
+      }, 2500);
+    }
+
+    function confirmPayment() {
+      alert('Obrigado! Seu pagamento Pix foi registrado com sucesso. Você já pode utilizar o Transcritor do Will!');
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

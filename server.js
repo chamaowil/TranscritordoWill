@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import { createPixPayment } from './pix.js';
 
 dotenv.config();
 
@@ -89,6 +90,47 @@ app.post('/api/validate-key', async (req, res) => {
       valid: false,
       error: error.message || 'Chave da API inválida ou sem permissão.'
     });
+  }
+});
+
+// Endpoint para gerar cobrança Pix
+app.post('/api/create-pix', async (req, res) => {
+  try {
+    const { plan = 'pro' } = req.body;
+
+    const planConfig = {
+      single: { title: 'Transcrição Avulsa', amount: 9.90 },
+      pro: { title: 'Plano Pro Mensal', amount: 29.90 },
+      unlimited: { title: 'Plano Escritório Ilimitado', amount: 79.90 }
+    };
+
+    const selected = planConfig[plan] || planConfig.pro;
+    const pixKey = process.env.PIX_KEY || 'wilsonbrenomkt@gmail.com';
+    const pixName = process.env.PIX_NAME || 'Transcritor do Will';
+    const pixCity = process.env.PIX_CITY || 'SAO PAULO';
+    const txId = `TRW${Date.now().toString(36).slice(-6).toUpperCase()}`;
+
+    const pixData = await createPixPayment({
+      key: pixKey,
+      name: pixName,
+      city: pixCity,
+      amount: selected.amount,
+      txId
+    });
+
+    res.json({
+      success: true,
+      plan,
+      planTitle: selected.title,
+      amount: selected.amount,
+      pixCode: pixData.pixCode,
+      qrCodeDataUrl: pixData.qrCodeDataUrl,
+      beneficiary: pixName,
+      txId
+    });
+  } catch (error) {
+    console.error('Erro ao gerar Pix:', error);
+    res.status(500).json({ success: false, error: 'Falha ao gerar cobrança Pix.' });
   }
 });
 
