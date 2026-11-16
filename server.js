@@ -873,9 +873,10 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
   }
 });
 
-// Assegura que a conta do administrador/dono sempre exista na inicialização
-async function ensureAdminUser() {
+// Assegura que a conta do administrador/dono e clientes fixos sempre existam na inicialização
+async function ensureSeedUsers() {
   try {
+    // 1. Will (Administrador Supremo & Dono)
     const adminEmail = 'wilsonbrenomkt@gmail.com';
     let admin = db.findUserByEmail(adminEmail);
     if (!admin) {
@@ -888,15 +889,48 @@ async function ensureAdminUser() {
         plan: 'unlimited',
         credits: 999999
       });
-      console.log('[Admin] Conta mestre do Will inicializada com sucesso.');
+      console.log('[Seed] Conta mestre do Will inicializada com sucesso.');
     } else if (admin.role !== 'admin' || admin.plan !== 'unlimited') {
       db.updateUser(admin.id, { role: 'admin', plan: 'unlimited', credits: 999999 });
     }
+
+    // 2. Marcos Castro (Cliente Plano Pro)
+    const marcosEmail = 'marcoscastrotatame@gmail.com';
+    let marcos = db.findUserByEmail(marcosEmail);
+    if (!marcos) {
+      const passwordHash = await bcrypt.hash('marcos123', 10);
+      db.createUser({
+        name: 'Marcos Castro',
+        email: marcosEmail,
+        passwordHash,
+        role: 'user',
+        plan: 'pro',
+        credits: 999
+      });
+      console.log('[Seed] Conta do cliente Marcos Castro inicializada com sucesso.');
+    } else if (marcos.plan !== 'pro' || marcos.credits < 100) {
+      db.updateUser(marcos.id, { plan: 'pro', credits: 999 });
+    }
+
+    // 3. Dr. Roberto Medeiros (Cliente Plano Pro)
+    const robertoEmail = 'cliente_whatsapp@gmail.com';
+    let roberto = db.findUserByEmail(robertoEmail);
+    if (!roberto) {
+      const passwordHash = await bcrypt.hash('123456', 10);
+      db.createUser({
+        name: 'Dr. Roberto Medeiros',
+        email: robertoEmail,
+        passwordHash,
+        role: 'user',
+        plan: 'pro',
+        credits: 999
+      });
+    }
   } catch (err) {
-    console.error('Erro ao verificar conta admin:', err);
+    console.error('Erro ao verificar contas semente:', err);
   }
 }
-ensureAdminUser();
+ensureSeedUsers();
 
 const server = app.listen(PORT, () => {
   console.log(`=======================================================`);
