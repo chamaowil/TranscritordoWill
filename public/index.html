@@ -112,6 +112,12 @@
 
           <!-- Estado Logado -->
           <div id="authNav" class="hidden flex items-center gap-2">
+            <!-- Botão Painel Admin (Exclusivo do Dono Will) -->
+            <button id="btnOpenAdminModal" class="hidden text-xs font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-xs transition flex items-center gap-1.5" title="Painel de Administração do Will">
+              <i class="fa-solid fa-crown text-amber-200"></i>
+              <span class="hidden sm:inline">Painel</span> Admin
+            </button>
+
             <!-- Badge de Créditos / Plano Atual -->
             <button id="btnUserPlanBadge" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-royal-50 dark:bg-royal-950/70 border border-royal-200 dark:border-royal-800 text-royal-700 dark:text-royal-300 flex items-center gap-1.5 shadow-xs transition hover:bg-royal-100 dark:hover:bg-royal-900" title="Clique para ver planos ou recarregar créditos">
               <i class="fa-solid fa-bolt text-amber-500"></i>
@@ -757,6 +763,100 @@
       <!-- Lista de Itens do Histórico -->
       <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
         <p class="text-chumbo-400 text-center py-8">Nenhuma transcrição salva no histórico.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: PAINEL ADMINISTRATIVO (EXCLUSIVO DO WILL) -->
+  <!-- ======================================================== -->
+  <div id="modalAdmin" class="hidden fixed inset-0 bg-chumbo-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-chumbo-900 border border-chumbo-200 dark:border-chumbo-800 w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] flex flex-col space-y-5 transition-colors">
+      
+      <!-- Botão Fechar -->
+      <button id="btnCloseAdminModal" class="absolute top-5 right-5 text-chumbo-400 hover:text-chumbo-700 dark:hover:text-white p-2 rounded-xl transition">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+
+      <!-- Cabeçalho Admin -->
+      <div class="flex items-center gap-3 pb-3 border-b border-chumbo-200 dark:border-chumbo-800">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-500 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-crown"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-lg text-chumbo-900 dark:text-white tracking-tight flex items-center gap-2">
+            Painel do Administrador
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 uppercase">Acesso Dono</span>
+          </h3>
+          <p class="text-xs text-chumbo-500 dark:text-chumbo-400">Liberar créditos, planos manuais e gerenciar clientes que pagaram por fora</p>
+        </div>
+      </div>
+
+      <!-- Abas Internas do Admin -->
+      <div class="flex bg-chumbo-100 dark:bg-chumbo-950 p-1 rounded-xl border border-chumbo-200 dark:border-chumbo-800">
+        <button id="tabAdminGrant" class="flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition">
+          <i class="fa-solid fa-user-plus mr-1.5"></i> Liberar Plano para Cliente
+        </button>
+        <button id="tabAdminUsers" class="flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition">
+          <i class="fa-solid fa-users mr-1.5"></i> Ver Todos os Clientes
+        </button>
+      </div>
+
+      <!-- Feedback de Ação Admin -->
+      <div id="adminFeedback" class="hidden p-3.5 rounded-xl text-xs font-medium"></div>
+
+      <!-- Conteúdo Aba 1: Liberar Plano / Créditos Manualmente -->
+      <div id="paneAdminGrant" class="space-y-4">
+        
+        <div class="p-3.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+          <i class="fa-solid fa-circle-info text-base text-amber-600 shrink-0 mt-0.5"></i>
+          <span>Use este formulário para ativar planos de clientes que pagaram via <strong>Pix direto, WhatsApp, dinheiro ou transferência bancária</strong>. Se o cliente ainda não tiver cadastro, uma conta será criada automaticamente para ele!</span>
+        </div>
+
+        <form id="formAdminGrant" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">E-mail do Cliente *</label>
+              <input type="email" id="adminClientEmail" required placeholder="cliente@exemplo.com" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Nome do Cliente (Opcional)</label>
+              <input type="text" id="adminClientName" placeholder="Ex: Roberto Silva" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Qual plano ou crédito liberar?</label>
+            <select id="adminSelectPlan" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white font-semibold focus:outline-none focus:border-royal-700 transition">
+              <option value="pro" selected>⭐ Plano Pro Mensal (Recomendado - 999 créditos / 30 dias)</option>
+              <option value="unlimited">🏢 Plano Escritório Ilimitado (Totalmente Ilimitado)</option>
+              <option value="credits_10">✨ Pacote de 10 Créditos Avulsos</option>
+              <option value="credits_5">✨ Pacote de 5 Créditos Avulsos</option>
+              <option value="single">✨ 1 Crédito Avulso</option>
+            </select>
+          </div>
+
+          <button type="submit" id="btnSubmitAdminGrant" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Liberar Acesso Agora</span>
+          </button>
+        </form>
+
+      </div>
+
+      <!-- Conteúdo Aba 2: Lista de Clientes -->
+      <div id="paneAdminUsers" class="hidden flex-1 overflow-y-auto space-y-2 pr-1">
+        <div class="flex items-center justify-between pb-2 text-xs font-bold text-chumbo-500">
+          <span id="adminTotalUsersLabel">Total de Clientes</span>
+          <button id="btnRefreshAdminUsers" class="text-royal-700 dark:text-royal-400 hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-arrows-rotate"></i> Atualizar
+          </button>
+        </div>
+        <div id="adminUsersList" class="space-y-2 text-xs">
+          <!-- Injetado dinamicamente -->
+        </div>
       </div>
 
     </div>

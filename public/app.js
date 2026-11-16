@@ -26,10 +26,27 @@ document.addEventListener('DOMContentLoaded', () => {
     authNav: document.getElementById('authNav'),
     btnOpenLogin: document.getElementById('btnOpenLogin'),
     btnOpenRegister: document.getElementById('btnOpenRegister'),
+    btnOpenAdminModal: document.getElementById('btnOpenAdminModal'),
     btnUserPlanBadge: document.getElementById('btnUserPlanBadge'),
     headerCreditsText: document.getElementById('headerCreditsText'),
     headerUserName: document.getElementById('headerUserName'),
     btnLogout: document.getElementById('btnLogout'),
+
+    // Modal Admin (Exclusivo Dono)
+    btnCloseAdminModal: document.getElementById('btnCloseAdminModal'),
+    modalAdmin: document.getElementById('modalAdmin'),
+    tabAdminGrant: document.getElementById('tabAdminGrant'),
+    tabAdminUsers: document.getElementById('tabAdminUsers'),
+    paneAdminGrant: document.getElementById('paneAdminGrant'),
+    paneAdminUsers: document.getElementById('paneAdminUsers'),
+    adminFeedback: document.getElementById('adminFeedback'),
+    formAdminGrant: document.getElementById('formAdminGrant'),
+    adminClientEmail: document.getElementById('adminClientEmail'),
+    adminClientName: document.getElementById('adminClientName'),
+    adminSelectPlan: document.getElementById('adminSelectPlan'),
+    btnRefreshAdminUsers: document.getElementById('btnRefreshAdminUsers'),
+    adminUsersList: document.getElementById('adminUsersList'),
+    adminTotalUsersLabel: document.getElementById('adminTotalUsersLabel'),
 
     // Tema Dark / Light
     btnToggleTheme: document.getElementById('btnToggleTheme'),
@@ -237,10 +254,21 @@ document.addEventListener('DOMContentLoaded', () => {
           dom.headerCreditsText.textContent = `${c} Crédito${c === 1 ? '' : 's'}`;
         }
       }
+
+      // Botão Painel Admin (apenas para o dono do sistema)
+      const isAdmin = state.user.role === 'admin' || (state.user.email && state.user.email.toLowerCase() === 'wilsonbrenomkt@gmail.com');
+      if (dom.btnOpenAdminModal) {
+        if (isAdmin) {
+          dom.btnOpenAdminModal.classList.remove('hidden');
+        } else {
+          dom.btnOpenAdminModal.classList.add('hidden');
+        }
+      }
     } else {
       // Visitante não autenticado
       if (dom.unauthNav) dom.unauthNav.classList.remove('hidden');
       if (dom.authNav) dom.authNav.classList.add('hidden');
+      if (dom.btnOpenAdminModal) dom.btnOpenAdminModal.classList.add('hidden');
     }
   }
 
@@ -1108,6 +1136,166 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
+  // PAINEL ADMINISTRATIVO (EXCLUSIVO DO WILL)
+  // ==========================================
+  function openAdminModal() {
+    if (!dom.modalAdmin) return;
+    switchAdminTab('grant');
+    hideAdminFeedback();
+    dom.modalAdmin.classList.remove('hidden');
+  }
+
+  function closeAdminModal() {
+    if (dom.modalAdmin) dom.modalAdmin.classList.add('hidden');
+  }
+
+  function switchAdminTab(tab) {
+    hideAdminFeedback();
+    if (tab === 'users') {
+      dom.tabAdminUsers.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition';
+      dom.tabAdminGrant.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition';
+      dom.paneAdminUsers.classList.remove('hidden');
+      dom.paneAdminGrant.classList.add('hidden');
+      loadAdminUsers();
+    } else {
+      dom.tabAdminGrant.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-royal-700 text-white shadow-xs transition';
+      dom.tabAdminUsers.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-chumbo-600 dark:text-chumbo-400 hover:text-chumbo-900 dark:hover:text-white transition';
+      dom.paneAdminGrant.classList.remove('hidden');
+      dom.paneAdminUsers.classList.add('hidden');
+    }
+  }
+
+  function showAdminFeedback(msg, type = 'success') {
+    if (!dom.adminFeedback) return;
+    dom.adminFeedback.textContent = msg;
+    dom.adminFeedback.classList.remove('hidden');
+    if (type === 'error') {
+      dom.adminFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300';
+    } else {
+      dom.adminFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300';
+    }
+  }
+
+  function hideAdminFeedback() {
+    if (dom.adminFeedback) {
+      dom.adminFeedback.classList.add('hidden');
+      dom.adminFeedback.textContent = '';
+    }
+  }
+
+  async function handleAdminGrantSubmit(e) {
+    e.preventDefault();
+    const email = dom.adminClientEmail.value.trim();
+    const clientName = dom.adminClientName.value.trim();
+    const plan = dom.adminSelectPlan.value;
+
+    if (!email) {
+      showAdminFeedback('Informe o e-mail do cliente.', 'error');
+      return;
+    }
+
+    try {
+      showAdminFeedback('Processando e liberando acesso...', 'info');
+      const res = await fetch('/api/admin/set-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.token}`
+        },
+        body: JSON.stringify({ email, clientName, plan })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showAdminFeedback(data.message, 'success');
+        showToast(data.message);
+        dom.adminClientEmail.value = '';
+        dom.adminClientName.value = '';
+      } else {
+        showAdminFeedback(data.message || 'Erro ao liberar plano.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro no admin grant:', err);
+      showAdminFeedback('Erro ao conectar com o servidor.', 'error');
+    }
+  }
+
+  async function loadAdminUsers() {
+    if (!dom.adminUsersList) return;
+    dom.adminUsersList.innerHTML = '<p class="text-chumbo-400 text-center py-6">Carregando lista de clientes...</p>';
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success && data.users) {
+        if (dom.adminTotalUsersLabel) dom.adminTotalUsersLabel.textContent = `Total de Clientes: ${data.users.length}`;
+        if (data.users.length === 0) {
+          dom.adminUsersList.innerHTML = '<p class="text-chumbo-400 text-center py-6">Nenhum cliente cadastrado ainda.</p>';
+          return;
+        }
+
+        dom.adminUsersList.innerHTML = data.users.map(u => `
+          <div class="p-3 rounded-xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-chumbo-900 dark:text-white">${u.name}</span>
+                ${u.role === 'admin' ? '<span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Admin</span>' : ''}
+              </div>
+              <p class="text-[11px] text-chumbo-500 dark:text-chumbo-400">${u.email}</p>
+            </div>
+            <div class="flex items-center gap-2 text-right">
+              <div>
+                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${u.plan === 'pro' || u.plan === 'unlimited' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-chumbo-200 text-chumbo-700 dark:bg-chumbo-800 dark:text-chumbo-300'}">
+                  ${u.plan.toUpperCase()}
+                </span>
+                <p class="text-[10px] text-chumbo-500 font-medium mt-0.5">${u.credits} créditos</p>
+              </div>
+              <button class="btn-quick-grant px-2.5 py-1 text-[11px] font-bold rounded-lg bg-royal-700 text-white hover:bg-royal-800 transition" data-email="${u.email}">
+                + Pro
+              </button>
+            </div>
+          </div>
+        `).join('');
+
+        // Ação rápida nos botões da lista
+        dom.adminUsersList.querySelectorAll('.btn-quick-grant').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const email = btn.getAttribute('data-email');
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+              const res = await fetch('/api/admin/set-plan', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${state.token}`
+                },
+                body: JSON.stringify({ email, plan: 'pro' })
+              });
+              const data = await res.json();
+              if (data.success) {
+                showToast(`Plano Pro liberado para ${email}!`);
+                loadAdminUsers();
+              }
+            } catch(e) {
+              btn.disabled = false;
+              btn.textContent = '+ Pro';
+            }
+          });
+        });
+
+      } else {
+        dom.adminUsersList.innerHTML = '<p class="text-rose-500 text-center py-6">Erro ao carregar clientes.</p>';
+      }
+    } catch (err) {
+      dom.adminUsersList.innerHTML = '<p class="text-rose-500 text-center py-6">Erro de conexão.</p>';
+    }
+  }
+
+  // ==========================================
   // EVENT LISTENERS
   // ==========================================
   function setupEventListeners() {
@@ -1164,6 +1352,26 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.registerPassword.type = isPass ? 'text' : 'password';
         dom.btnToggleRegisterPass.innerHTML = isPass ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
       });
+    }
+
+    // Modal Admin (Exclusivo do Dono Will)
+    if (dom.btnOpenAdminModal) {
+      dom.btnOpenAdminModal.addEventListener('click', openAdminModal);
+    }
+    if (dom.btnCloseAdminModal) {
+      dom.btnCloseAdminModal.addEventListener('click', closeAdminModal);
+    }
+    if (dom.tabAdminGrant) {
+      dom.tabAdminGrant.addEventListener('click', () => switchAdminTab('grant'));
+    }
+    if (dom.tabAdminUsers) {
+      dom.tabAdminUsers.addEventListener('click', () => switchAdminTab('users'));
+    }
+    if (dom.formAdminGrant) {
+      dom.formAdminGrant.addEventListener('submit', handleAdminGrantSubmit);
+    }
+    if (dom.btnRefreshAdminUsers) {
+      dom.btnRefreshAdminUsers.addEventListener('click', loadAdminUsers);
     }
 
     // Modal de Planos & Pagamento Pix
@@ -1379,6 +1587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dom.modalAuth) dom.modalAuth.classList.add('hidden');
         if (dom.modalHistory) dom.modalHistory.classList.add('hidden');
         if (dom.modalPricing) dom.modalPricing.classList.add('hidden');
+        if (dom.modalAdmin) dom.modalAdmin.classList.add('hidden');
       }
     });
   }

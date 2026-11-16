@@ -70,8 +70,9 @@ export const db = {
       name: userData.name.trim(),
       email: userData.email.toLowerCase().trim(),
       passwordHash: userData.passwordHash,
-      plan: 'free', // 'free' | 'single' | 'pro' | 'unlimited'
-      credits: 1, // 1 crédito gratuito de boas-vindas
+      role: userData.role || 'user',
+      plan: userData.plan || 'free', // 'free' | 'single' | 'pro' | 'unlimited'
+      credits: userData.credits !== undefined ? userData.credits : 1, // 1 crédito gratuito de boas-vindas
       transcriptionsCount: 0,
       createdAt: new Date().toISOString()
     };

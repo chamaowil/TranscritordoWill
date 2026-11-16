@@ -49,6 +49,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Configuração de Administradores
+const ADMIN_EMAILS = [
+  (process.env.ADMIN_EMAIL || 'wilsonbrenomkt@gmail.com').toLowerCase().trim(),
+  'wilsonbrenomkt@gmail.com'
+];
+
+function isAdminEmail(email) {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
 // Middleware de Autenticação Segura JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -80,9 +91,27 @@ function authenticateToken(req, res, next) {
       });
     }
 
+    // Se for o dono/admin, garante privilégios máximos e acesso ilimitado
+    if (isAdminEmail(user.email)) {
+      user.role = 'admin';
+      user.plan = 'unlimited';
+      user.credits = 999999;
+    }
+
     req.user = user;
     next();
   });
+}
+
+// Middleware de Proteção Admin
+function requireAdmin(req, res, next) {
+  if (!req.user || (!isAdminEmail(req.user.email) && req.user.role !== 'admin')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado. Apenas o administrador do sistema pode realizar esta ação.'
+    });
+  }
+  next();
 }
 
 // Helper para obter cliente Gemini (exclusivo do servidor, sem vazar chaves)
@@ -129,8 +158,16 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado. Faça login.' });
     }
 
+    const isAdmin = isAdminEmail(email);
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = db.createUser({ name, email, passwordHash });
+    const user = db.createUser({
+      name,
+      email,
+      passwordHash,
+      role: isAdmin ? 'admin' : 'user',
+      plan: isAdmin ? 'unlimited' : 'free',
+      credits: isAdmin ? 999999 : 1
+    });
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -145,6 +182,7 @@ app.post('/api/auth/register', async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
         plan: user.plan,
         credits: user.credits
       }
@@ -173,6 +211,15 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'E-mail ou senha incorretos.' });
     }
 
+    // Se for o dono do sistema, garante papel de admin e créditos infinitos
+    const isAdmin = isAdminEmail(user.email);
+    if (isAdmin && (user.role !== 'admin' || user.plan !== 'unlimited')) {
+      user.role = 'admin';
+      user.plan = 'unlimited';
+      user.credits = 999999;
+      db.updateUser(user.id, { role: 'admin', plan: 'unlimited', credits: 999999 });
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email },
       JWT_SECRET,
@@ -186,6 +233,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role || (isAdmin ? 'admin' : 'user'),
         plan: user.plan,
         credits: user.credits,
         transcriptionsCount: user.transcriptionsCount || 0
@@ -199,17 +247,118 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   const user = req.user;
+  const isAdmin = isAdminEmail(user.email) || user.role === 'admin';
   res.json({
     success: true,
     user: {
       id: user.id,
       name: user.name,
       email: user.email,
-      plan: user.plan,
-      credits: user.credits,
+      role: isAdmin ? 'admin' : (user.role || 'user'),
+      plan: isAdmin ? 'unlimited' : user.plan,
+      credits: isAdmin ? 999999 : user.credits,
       transcriptionsCount: user.transcriptionsCount || 0
     }
   });
+});
+
+// ========================================================
+// ROTAS DE ADMINISTRAÇÃO (PAINEL DO DONO & CLIENTES EXTERNOS)
+// ========================================================
+app.get('/api/admin/users', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    const users = db.getUsers().map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role || 'user',
+      plan: u.plan,
+      credits: u.credits,
+      transcriptionsCount: u.transcriptionsCount || 0,
+      createdAt: u.createdAt
+    }));
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Erro ao listar usuários admin:', err);
+    res.status(500).json({ success: false, message: 'Erro ao carregar lista de usuários.' });
+  }
+});
+
+app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { email, plan, addCredits, clientName } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Informe um e-mail válido para o cliente.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let user = db.findUserByEmail(cleanEmail);
+
+    let planToSet = plan || 'pro';
+    let creditsToSet = 10;
+
+    if (planToSet === 'single') creditsToSet = 1;
+    if (planToSet === 'credits_5') { planToSet = 'single'; creditsToSet = 5; }
+    if (planToSet === 'credits_10') { planToSet = 'single'; creditsToSet = 10; }
+    if (planToSet === 'pro') creditsToSet = 999;
+    if (planToSet === 'unlimited') creditsToSet = 99999;
+
+    if (!user) {
+      // Cliente novo ainda não cadastrado no site: cria a conta com senha provisória
+      const defaultPassword = 'senha' + Math.floor(1000 + Math.random() * 9000);
+      const passwordHash = await bcrypt.hash(defaultPassword, 10);
+      user = db.createUser({
+        name: clientName && clientName.trim() ? clientName.trim() : cleanEmail.split('@')[0],
+        email: cleanEmail,
+        passwordHash,
+        plan: planToSet,
+        credits: creditsToSet
+      });
+
+      return res.json({
+        success: true,
+        isNewUser: true,
+        message: `Novo cliente cadastrado! Plano: ${planToSet.toUpperCase()} | Senha provisória: ${defaultPassword}`,
+        tempPassword: defaultPassword,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          plan: user.plan,
+          credits: user.credits
+        }
+      });
+    }
+
+    // Cliente já existente: atualiza plano ou soma créditos
+    let newCredits = creditsToSet;
+    if (addCredits && !isNaN(Number(addCredits))) {
+      newCredits = (user.credits || 0) + Number(addCredits);
+    }
+
+    const updatedUser = db.updateUser(user.id, {
+      plan: planToSet,
+      credits: newCredits
+    });
+
+    res.json({
+      success: true,
+      isNewUser: false,
+      message: `Plano atualizado com sucesso para ${user.name} (${user.email})!`,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        plan: updatedUser.plan,
+        credits: updatedUser.credits
+      }
+    });
+
+  } catch (err) {
+    console.error('Erro ao definir plano admin:', err);
+    res.status(500).json({ success: false, message: 'Erro interno ao alterar plano.' });
+  }
 });
 
 // ========================================================
