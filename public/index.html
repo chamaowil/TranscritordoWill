@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcritor de Áudio AI | Google Gemini</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            },
+            surface: {
+              dark: '#0f172a',
+              card: '#1e293b',
+              border: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Phosphor Icons, Fonts & html2pdf.js -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- Glow Background Effect -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-indigo-900/20 via-purple-900/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-waveform-lines text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+            Transcritor de Áudio AI
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">Gemini 3.8</span>
+          </h1>
+          <p class="text-xs text-slate-400">Precisão extrema em português com inteligência artificial</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="btnOpenHistory" class="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span class="hidden sm:inline">Histórico</span>
+        </button>
+
+        <button id="btnOpenKeyModal" class="text-xs px-3 py-1.5 rounded-lg border transition flex items-center gap-2" title="Configurar Chave da API Gemini">
+          <span id="keyStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="keyStatusText" class="font-medium text-slate-300">Configurar Chave API</span>
+          <i class="fa-solid fa-key text-slate-400"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Top Banner Alert (Se não tiver chave configurada) -->
+    <div id="noKeyWarning" class="hidden mb-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 flex items-start justify-between gap-4">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
+        <div>
+          <h3 class="font-semibold text-amber-200 text-sm">Chave da API Gemini não configurada</h3>
+          <p class="text-xs text-slate-300 mt-0.5">Para transcrever, você precisa de uma chave gratuita do Google AI Studio. É 100% grátis e leva menos de 1 minuto!</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('btnOpenKeyModal').click()" class="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold transition">
+        Configurar Agora
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Coluna Esquerda: Entrada de Áudio & Configurações (5 cols) -->
+      <section class="lg:col-span-5 space-y-6">
+
+        <!-- Card de Origem do Áudio -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+          
+          <!-- Seleção de Abas: Arquivo vs Microfone -->
+          <div class="flex bg-slate-800/80 p-1 rounded-xl mb-5 border border-slate-700/50">
+            <button id="tabUpload" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 transition">
+              <i class="fa-solid fa-file-audio"></i> Enviar Arquivo
+            </button>
+            <button id="tabRecord" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center justify-center gap-2 transition">
+              <i class="fa-solid fa-microphone"></i> Gravar ao Vivo
+            </button>
+          </div>
+
+          <!-- Conteúdo Aba 1: Upload de Arquivo -->
+          <div id="paneUpload" class="space-y-4">
+            <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-8 text-center cursor-pointer transition group bg-slate-950/40 hover:bg-slate-900/50">
+              <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.flac,.webm,.wma" class="hidden">
+              <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-indigo-500/10 group-hover:bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl transition">
+                <i class="fa-solid fa-cloud-arrow-up group-hover:scale-110 transition"></i>
+              </div>
+              <p class="font-medium text-sm text-slate-200">Arraste seu áudio aqui ou <span class="text-indigo-400 underline underline-offset-2">escolha no PC</span></p>
+              <p class="text-xs text-slate-400 mt-1">MP3, WAV, M4A, OGG, OPUS (áudios do WhatsApp), AAC, FLAC (até 100 MB)</p>
+            </div>
+
+            <!-- Preview do Arquivo Selecionado -->
+            <div id="filePreview" class="hidden p-4 rounded-xl bg-slate-800/50 border border-slate-700/70 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 overflow-hidden">
+                  <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-music"></i>
+                  </div>
+                  <div class="truncate">
+                    <p id="fileName" class="text-xs font-semibold text-slate-200 truncate">audio.mp3</p>
+                    <p id="fileSize" class="text-[11px] text-slate-400">0.0 MB</p>
+                  </div>
+                </div>
+                <button id="btnRemoveFile" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-700 transition" title="Remover áudio">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+
+              <!-- Player de Áudio Incorporado -->
+              <audio id="audioElement" controls class="w-full h-8 rounded-lg mt-2 focus:outline-none"></audio>
+            </div>
+          </div>
+
+          <!-- Conteúdo Aba 2: Gravação pelo Microfone -->
+          <div id="paneRecord" class="hidden space-y-4 py-4 text-center">
+            <div class="relative inline-block">
+              <button id="btnRecordToggle" class="w-20 h-20 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-2xl flex items-center justify-center shadow-lg shadow-rose-600/30 transition transform hover:scale-105 active:scale-95">
+                <i id="recordIcon" class="fa-solid fa-microphone"></i>
+              </button>
+              <span id="recordPulse" class="hidden absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-40 pointer-events-none"></span>
+            </div>
+
+            <div>
+              <p id="recordTimer" class="font-mono text-2xl font-bold text-slate-200">00:00</p>
+              <p id="recordStatus" class="text-xs text-slate-400 mt-1">Clique para começar a gravar pelo microfone</p>
+            </div>
+
+            <!-- Audio gravado preview -->
+            <div id="recordAudioPreview" class="hidden text-left p-3 rounded-xl bg-slate-800/50 border border-slate-700">
+              <p class="text-xs font-medium text-slate-300 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i> Áudio gravado pronto
+              </p>
+              <audio id="recordAudioElement" controls class="w-full h-8 rounded-lg"></audio>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Opções & Ajustes da Transcrição -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <i class="fa-solid fa-sliders"></i> Opções de Transcrição
+          </h2>
+
+          <!-- Modelo Gemini -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Modelo de IA</label>
+            <select id="selectModel" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Recomendado - Completo e Rápido)</option>
+              <option value="gemini-3.5-transcribe">Gemini 3.5 Transcribe (Especialista em Áudio)</option>
+            </select>
+          </div>
+
+          <!-- Tipo de Análise / Template -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+              <span>Formato de Análise & Saída</span>
+              <span class="text-[10px] text-indigo-400 font-normal">Ideal para relatórios</span>
+            </label>
+            <select id="selectOutputFormat" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="summary_points" selected>📊 Resumo Executivo & Tópicos</option>
+              <option value="meeting_minutes">📋 Ata de Reunião Formal (Decisões & Prazos)</option>
+              <option value="social_content">📱 Conteúdo para Redes Sociais / LinkedIn</option>
+              <option value="faq">❓ Perguntas & Respostas Frequentes (FAQ)</option>
+              <option value="transcribe_only">📄 Apenas Transcrição Direta</option>
+            </select>
+          </div>
+
+          <!-- Toggles: Identificar Falantes e Timestamps -->
+          <div class="space-y-2.5 pt-1">
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="checkSpeakers" checked class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
+              <div class="text-xs">
+                <span class="font-medium text-slate-200 group-hover:text-white">Identificar Falantes (Diarização)</span>
+                <p class="text-[11px] text-slate-400">Separa as falas como "Falante 1:", "Falante 2:"</p>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="checkTimestamps" checked class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
+              <div class="text-xs">
+                <span class="font-medium text-slate-200 group-hover:text-white">Marcadores de Tempo (Timestamps)</span>
+                <p class="text-[11px] text-slate-400">Adiciona marcadores [00:15] para facilitar a navegação</p>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="checkSummary" checked class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
+              <div class="text-xs">
+                <span class="font-medium text-slate-200 group-hover:text-white">Gerar Resumo & Pontos-Chave</span>
+                <p class="text-[11px] text-slate-400">Cria um resumo executivo e tarefas mencionadas</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Idioma / Tradução -->
+          <div class="pt-2">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Idioma & Tradução</label>
+            <select id="selectLanguage" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="auto" selected>Detectar automaticamente (Mantém idioma original)</option>
+              <option value="pt-BR">Português do Brasil</option>
+              <option value="translate_pt">Traduzir áudio estrangeiro para Português</option>
+              <option value="en">Inglês</option>
+              <option value="es">Espanhol</option>
+            </select>
+          </div>
+
+          <!-- Instruções Adicionais Opcionais -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Vocabulário Técnico / Instruções (Opcional)</label>
+            <input type="text" id="customInstructions" placeholder="Ex: Nomes próprios, marcas, siglas específicas..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 placeholder:text-slate-500">
+          </div>
+
+          <!-- Botão Principal de Transcrição -->
+          <button id="btnTranscribe" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition transform active:scale-98 disabled:opacity-50 disabled:pointer-events-none">
+            <i class="fa-solid fa-sparkles"></i>
+            <span>Iniciar Transcrição com IA</span>
+          </button>
+
+        </div>
+
+      </section>
+
+      <!-- Coluna Direita: Resultados da Transcrição (7 cols) -->
+      <section class="lg:col-span-7 space-y-6">
+
+        <!-- Card de Status / Carregando (Oculto por padrão) -->
+        <div id="loadingCard" class="hidden bg-slate-900/80 border border-indigo-500/30 rounded-2xl p-8 text-center shadow-xl backdrop-blur-sm space-y-4">
+          <div class="relative w-16 h-16 mx-auto">
+            <div class="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-indigo-400">
+              <i class="fa-solid fa-brain animate-pulse"></i>
+            </div>
+          </div>
+          <div>
+            <h3 id="loadingTitle" class="font-bold text-base text-slate-100">Transcrevendo áudio...</h3>
+            <p id="loadingSubtitle" class="text-xs text-slate-400 mt-1">A IA está processando e formatando as falas com pontuação</p>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden max-w-xs mx-auto">
+            <div id="loadingBar" class="bg-indigo-500 h-1.5 rounded-full w-1/3 animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Card de Resultado Principal -->
+        <div id="resultCard" class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-sm flex flex-col min-h-[500px]">
+
+          <!-- Cabeçalho do Card de Resultado -->
+          <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <!-- Abas do Resultado -->
+            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button id="resTabTranscribe" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white flex items-center gap-2 transition">
+                <i class="fa-solid fa-file-lines"></i> Transcrição
+              </button>
+              <button id="resTabSummary" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center gap-2 transition">
+                <i class="fa-solid fa-lightbulb"></i> Resumo & Ações
+              </button>
+              <button id="resTabSRT" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white flex items-center gap-2 transition">
+                <i class="fa-solid fa-closed-captioning"></i> Legenda (SRT)
+              </button>
+            </div>
+
+            <!-- Botões de Ação: Exportar PDF, Copiar, Baixar TXT, SRT, MD, Imprimir -->
+            <div class="flex items-center gap-1.5">
+              <button id="btnExportPDF" class="px-3 py-1.5 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-sm transition flex items-center gap-1.5" title="Exportar Relatório Formatado em PDF Profissional">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span class="hidden sm:inline">Exportar PDF</span>
+              </button>
+
+              <button id="btnCopyText" class="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5" title="Copiar texto para Área de Transferência">
+                <i class="fa-regular fa-copy"></i>
+                <span class="hidden sm:inline">Copiar</span>
+              </button>
+              
+              <!-- Dropdown Baixar -->
+              <div class="relative">
+                <button id="btnDownloadDropdown" class="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-download"></i>
+                  <span class="hidden sm:inline">Mais</span>
+                  <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                </button>
+                <div id="downloadMenu" class="hidden absolute right-0 mt-1 w-44 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl py-1 z-30">
+                  <button id="btnDownloadTXT" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-regular fa-file-lines text-indigo-400"></i> Texto (.txt)
+                  </button>
+                  <button id="btnDownloadSRT" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-closed-captioning text-violet-400"></i> Legenda (.srt)
+                  </button>
+                  <button id="btnDownloadMD" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                    <i class="fa-brands fa-markdown text-blue-400"></i> Markdown (.md)
+                  </button>
+                </div>
+              </div>
+
+              <button id="btnPrint" class="p-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition" title="Imprimir direto">
+                <i class="fa-solid fa-print"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Corpo do Resultado -->
+          <div class="p-5 flex-1 flex flex-col">
+            
+            <!-- Estado Vazio (Antes de transcrever) -->
+            <div id="emptyResultState" class="m-auto text-center py-16 px-4 space-y-3">
+              <div class="w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-slate-500 mx-auto flex items-center justify-center text-2xl">
+                <i class="fa-solid fa-waveform"></i>
+              </div>
+              <h3 class="font-semibold text-slate-300 text-sm">Nenhuma transcrição realizada ainda</h3>
+              <p class="text-xs text-slate-500 max-w-sm mx-auto">Envie um arquivo de áudio ou grave diretamente pelo microfone ao lado para visualizar a transcrição aqui.</p>
+            </div>
+
+            <!-- Painel 1: Transcrição -->
+            <div id="paneResTranscribe" class="hidden flex-1 flex flex-col space-y-3">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
+                <span id="wordCountLabel">0 palavras • 0 caracteres</span>
+                <span class="text-indigo-400 flex items-center gap-1"><i class="fa-solid fa-pen-to-square text-[10px]"></i> Texto editável</span>
+              </div>
+              <textarea id="transcriptionTextArea" class="w-full flex-1 min-h-[350px] bg-transparent border-0 text-slate-200 text-sm leading-relaxed focus:outline-none resize-none font-sans" placeholder="O texto transcrito aparecerá aqui..."></textarea>
+            </div>
+
+            <!-- Painel 2: Resumo & Ações -->
+            <div id="paneResSummary" class="hidden flex-1 space-y-4 text-sm text-slate-200 overflow-y-auto max-h-[500px] pr-2">
+              <div class="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/20">
+                <h4 class="font-bold text-xs uppercase tracking-wider text-indigo-400 mb-2 flex items-center gap-2">
+                  <i class="fa-solid fa-bookmark"></i> Resumo Executivo
+                </h4>
+                <div id="summaryContent" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">Nenhum resumo gerado.</div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-800/40 border border-slate-700">
+                <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
+                  <i class="fa-solid fa-check-double"></i> Pontos-Chave & Decisões
+                </h4>
+                <div id="keyPointsContent" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">Nenhum ponto registrado.</div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-800/40 border border-slate-700">
+                <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-2">
+                  <i class="fa-solid fa-list-check"></i> Próximos Passos & Ações
+                </h4>
+                <div id="actionItemsContent" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">Nenhuma ação detectada.</div>
+              </div>
+            </div>
+
+            <!-- Painel 3: Legendas SRT -->
+            <div id="paneResSRT" class="hidden flex-1 flex flex-col space-y-3">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
+                <span>Formato de Legenda SRT (compatível com YouTube, Premiere, VLC)</span>
+              </div>
+              <textarea id="srtTextArea" class="w-full flex-1 min-h-[350px] bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-emerald-400 leading-relaxed focus:outline-none resize-none"></textarea>
+            </div>
+
+          </div>
+
+          <!-- Rodapé do Card com Meta-informações -->
+          <div id="resultFooter" class="hidden px-4 py-2.5 border-t border-slate-800/80 bg-slate-950/50 rounded-b-2xl flex flex-wrap items-center justify-between text-[11px] text-slate-400">
+            <span id="footerFileName">arquivo.mp3</span>
+            <span id="footerModel">Modelo: Gemini 3.8 Flash</span>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Modal: Configuração da Chave da API Gemini -->
+  <div id="modalKey" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative space-y-5">
+      
+      <!-- Botão Fechar -->
+      <button id="btnCloseKeyModal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-slate-100">Chave da API Gemini</h3>
+          <p class="text-xs text-slate-400">Google AI Studio</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300">
+        <p>A chave é necessária para processar os áudios diretamente com os modelos do Google. A Google oferece cota <strong>100% gratuita</strong>.</p>
+        
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <p class="font-semibold text-slate-200">Como obter sua chave em 30 segundos:</p>
+          <ol class="list-decimal list-inside space-y-1 text-slate-400">
+            <li>Acesse o <a href="https://aistudio.google.com/apikey" target="_blank" class="text-indigo-400 underline">Google AI Studio (Clique aqui)</a></li>
+            <li>Faça login com sua conta Google</li>
+            <li>Clique em <strong>"Create API key"</strong> e copie a chave</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-200 mb-1">Cole sua chave da API aqui:</label>
+          <div class="relative">
+            <input type="password" id="inputApiKey" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 pr-10 focus:outline-none focus:border-indigo-500 font-mono">
+            <button id="btnToggleKeyVisibility" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="keyValidationFeedback" class="hidden p-2.5 rounded-lg text-xs"></div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button id="btnClearKey" class="text-xs px-3 py-2 text-rose-400 hover:bg-rose-500/10 rounded-xl transition">
+          Remover Chave
+        </button>
+        <button id="btnSaveKey" class="text-xs px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-2 transition">
+          <i class="fa-solid fa-check"></i>
+          <span>Validar e Salvar</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal / Drawer: Histórico de Transcrições -->
+  <div id="modalHistory" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-xl max-h-[85vh] rounded-2xl p-6 shadow-2xl relative flex flex-col space-y-4">
+      
+      <button id="btnCloseHistoryModal" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i>
+          <h3 class="font-bold text-base text-slate-100">Histórico de Transcrições</h3>
+        </div>
+        <button id="btnClearAllHistory" class="text-xs text-rose-400 hover:text-rose-300 hover:underline">
+          Limpar histórico
+        </button>
+      </div>
+
+      <!-- Lista de Itens -->
+      <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+        <p class="text-slate-500 text-center py-8">Nenhuma transcrição salva no histórico.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastNotification" class="fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toastMessage" class="text-xs font-medium">Notificação</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
