@@ -585,10 +585,13 @@ document.addEventListener('DOMContentLoaded', () => {
     container.style.lineHeight = '1.6';
 
     let html = `
-      <div style="border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="border-bottom: 3px solid #1d4ed8; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
-          <h1 style="font-size: 20px; font-weight: 700; color: #1e1b4b; margin: 0;">Relatório de Transcrição & Análise</h1>
-          <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0;">Inteligência Artificial Corporativa • Google Gemini</p>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">Transcritor do Will</h1>
+            <span style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase;">transcritordowill</span>
+          </div>
+          <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0; font-weight: 500;">Relatório Executivo de Transcrição & Análise • Google Gemini</p>
         </div>
         <div style="text-align: right; font-size: 10px; color: #64748b;">
           <div><strong>Data:</strong> ${dateStr}</div>
@@ -596,9 +599,9 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px;">
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; color: #334155;">
         <div><strong>Arquivo:</strong> ${fileName}</div>
-        <div><strong>Modelo:</strong> ${data.modelUsed || 'Gemini 3.8 Flash'}</div>
+        <div><strong>Motor de IA:</strong> ${data.modelUsed || 'Gemini 3.8 Flash'}</div>
         <div><strong>Total de Palavras:</strong> ${wordCount.toLocaleString()}</div>
       </div>
     `;
@@ -606,10 +609,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (summary && !summary.includes('Nenhum')) {
       html += `
         <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 700; color: #4338ca; border-left: 4px solid #4f46e5; padding-left: 8px; margin-bottom: 8px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #1e3a8a; border-left: 4px solid #1d4ed8; padding-left: 8px; margin-bottom: 8px;">
             📌 Resumo Executivo
           </h2>
-          <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 12px; font-size: 11px; color: #1e293b; white-space: pre-wrap; line-height: 1.6;">${summary}</div>
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px; font-size: 11px; color: #1e293b; white-space: pre-wrap; line-height: 1.6;">${summary}</div>
         </div>
       `;
     }
@@ -617,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (keyPoints && !keyPoints.includes('Nenhum')) {
       html += `
         <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 700; color: #047857; border-left: 4px solid #10b981; padding-left: 8px; margin-bottom: 8px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #065f46; border-left: 4px solid #10b981; padding-left: 8px; margin-bottom: 8px;">
             💡 Pontos-Chave & Tópicos Discutidos
           </h2>
           <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 12px; font-size: 11px; color: #064e3b; white-space: pre-wrap; line-height: 1.6;">${keyPoints}</div>
@@ -628,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (actionItems && !actionItems.includes('Nenhuma')) {
       html += `
         <div style="margin-bottom: 16px;">
-          <h2 style="font-size: 13px; font-weight: 700; color: #b45309; border-left: 4px solid #f59e0b; padding-left: 8px; margin-bottom: 8px;">
+          <h2 style="font-size: 13px; font-weight: 800; color: #92400e; border-left: 4px solid #f59e0b; padding-left: 8px; margin-bottom: 8px;">
             📋 Próximos Passos & Deliberações
           </h2>
           <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px; font-size: 11px; color: #78350f; white-space: pre-wrap; line-height: 1.6;">${actionItems}</div>
@@ -638,14 +641,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     html += `
       <div style="margin-top: 20px;">
-        <h2 style="font-size: 13px; font-weight: 700; color: #1e293b; border-left: 4px solid #64748b; padding-left: 8px; margin-bottom: 8px;">
+        <h2 style="font-size: 13px; font-weight: 800; color: #0f172a; border-left: 4px solid #475569; padding-left: 8px; margin-bottom: 8px;">
           📝 Transcrição Integral do Áudio
         </h2>
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 11px; color: #334155; line-height: 1.7; white-space: pre-wrap;">${transcription}</div>
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 11px; color: #1e293b; line-height: 1.7; white-space: pre-wrap;">${transcription}</div>
       </div>
 
       <div style="margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 9px; color: #94a3b8;">
-        Relatório gerado automaticamente • Transcritor AI • Todos os direitos reservados
+        Relatório gerado por Transcritor do Will • transcritordowill • Todos os direitos reservados
       </div>
     `;
 

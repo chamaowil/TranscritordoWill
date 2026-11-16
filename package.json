@@ -1,7 +1,7 @@
 {
-  "name": "trascrever-audio",
+  "name": "transcritordowill",
   "version": "1.0.0",
-  "description": "",
+  "description": "Transcritor de Áudio AI do Will - Transcrições, Resumos, Atas e PDF",
   "main": "server.js",
   "type": "module",
   "scripts": {

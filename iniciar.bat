@@ -1,7 +1,7 @@
 @echo off
-title Transcritor de Audio AI - Google Gemini
+title Transcritor do Will - transcritordowill
 echo =======================================================
-echo   Iniciando o Transcritor de Audio AI...
+echo   Iniciando o Transcritor do Will...
 echo =======================================================
 echo.
 
