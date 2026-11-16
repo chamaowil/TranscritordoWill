@@ -8,3 +8,9 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
+      - key: PIX_KEY
+        value: wilsonbrenomkt@gmail.com
+      - key: PIX_NAME
+        value: Transcritor do Will
+      - key: PIX_CITY
+        value: SAO PAULO
