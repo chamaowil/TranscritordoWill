@@ -114,14 +114,21 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Helper para obter chaves da API (suporta rotação automática com múltiplas chaves separadas por vírgula)
+function getGeminiApiKeys() {
+  const raw = process.env.GEMINI_API_KEY || '';
+  return raw.split(/[,;\n]+/).map(k => k.trim()).filter(k => k.length > 5);
+}
+
 // Helper para obter cliente Gemini (exclusivo do servidor, sem vazar chaves)
-function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error('Serviço de IA temporariamente indisponível. Contate o suporte.');
+function getGeminiClient(specificKey) {
+  const keys = getGeminiApiKeys();
+  const chosenKey = specificKey || keys[0];
+  if (!chosenKey) {
+    throw new Error('Serviço de IA temporariamente indisponível. Nenhuma chave configurada.');
   }
   return new GoogleGenAI({
-    apiKey: apiKey.trim(),
+    apiKey: chosenKey,
     apiVersion: 'v1beta',
     httpOptions: { apiVersion: 'v1beta' }
   });
@@ -697,101 +704,115 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
       customInstructions = ''
     } = req.body;
 
-    ai = getGeminiClient();
+    const candidateKeys = getGeminiApiKeys();
+    if (candidateKeys.length === 0) {
+      throw new Error('Nenhuma chave da API Gemini configurada no servidor.');
+    }
 
-    const filePath = uploadedFile.path;
-    const fileSize = uploadedFile.size;
-    const mimeType = getAudioMimeType(filePath, uploadedFile.mimetype);
-
-    console.log(`[Upload] Usuário: ${user.email} | Arquivo: ${uploadedFile.originalname} | Tamanho: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
-
-    const selectedModel = model === 'gemini-3.5-transcribe' ? 'gemini-3.5-transcribe' : 'gemini-3.8-flash';
-    const promptText = buildTranscriptionPrompt({
-      detectSpeakers,
-      includeTimestamps,
-      outputFormat,
-      targetLanguage,
-      customInstructions
-    });
+    const candidateModels = selectedModel === 'gemini-3.5-transcribe'
+      ? ['gemini-3.5-transcribe', 'gemini-3.8-flash', 'gemini-3.5-flash-lite']
+      : ['gemini-3.8-flash', 'gemini-3.5-transcribe', 'gemini-3.5-flash-lite'];
 
     let fullOutput = '';
+    let lastError = null;
+    let successfulModel = selectedModel;
     const fileBuffer = await fs.promises.readFile(filePath);
     const base64Data = fileBuffer.toString('base64');
 
-    // 1. Faz upload do áudio usando a Files API oficial (suporta até 2GB com máxima fidelidade)
-    try {
-      geminiFileRef = await ai.files.upload({
-        file: filePath,
-        config: { mimeType }
-      });
-      console.log(`[Files API] Áudio carregado com sucesso: ${geminiFileRef.name} (${geminiFileRef.uri})`);
-    } catch (uploadErr) {
-      console.warn('[Files API upload falhou, usará fallback inline]:', uploadErr.message);
-    }
+    // Loop pelas chaves configuradas (suporta rotação automática em caso de quota 429)
+    for (const currentKey of candidateKeys) {
+      if (fullOutput && fullOutput.trim()) break;
 
-    // 2. Tentativa Primária: Interactions API com gemini-3.8-flash ou gemini-3.5-transcribe
-    try {
-      let interactionInput = [];
-      if (geminiFileRef && geminiFileRef.uri) {
-        if (selectedModel === 'gemini-3.5-transcribe') {
-          interactionInput = [
-            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
-          ];
-        } else {
-          interactionInput = [
-            { type: 'text', text: promptText },
-            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
-          ];
-        }
-      } else {
-        // Se o upload falhou, usa inline base64
-        if (selectedModel === 'gemini-3.5-transcribe') {
-          interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
-        } else {
-          interactionInput = [
-            { type: 'text', text: promptText },
-            { type: 'audio', data: base64Data, mime_type: mimeType }
-          ];
-        }
-      }
+      ai = getGeminiClient(currentKey);
 
-      const interaction = await ai.interactions.create({
-        model: selectedModel,
-        input: interactionInput,
-        api_version: 'v1beta'
-      });
-
-      fullOutput = interaction.output_text || '';
-    } catch (interactErr) {
-      console.warn('[Interactions API falhou, tentando fallback generateContent com gemini-3.8-flash]:', interactErr.message);
-      fullOutput = '';
-    }
-
-    // 3. Tentativa Secundária (Fallback Universal): Models API (generateContent) com gemini-3.8-flash
-    if (!fullOutput || !fullOutput.trim()) {
-      let contents = [];
-      if (geminiFileRef && geminiFileRef.uri) {
-        contents = [
-          { text: promptText },
-          { fileData: { fileUri: geminiFileRef.uri, mimeType: geminiFileRef.mimeType || mimeType } }
-        ];
-      } else {
-        contents = [
-          { text: promptText },
-          { inlineData: { mimeType, data: base64Data } }
-        ];
-      }
-
+      // 1. Tenta fazer upload do áudio para esta chave via Files API oficial
       try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents
+        geminiFileRef = await ai.files.upload({
+          file: filePath,
+          config: { mimeType }
         });
-        fullOutput = response.text || '';
-      } catch (genErr) {
-        console.error('[Fallback generateContent falhou]:', genErr.message);
-        throw new Error(genErr.message || 'Falha ao processar o áudio com a inteligência artificial.');
+        console.log(`[Files API] Áudio carregado para a chave (...${currentKey.slice(-6)}): ${geminiFileRef.name}`);
+      } catch (uploadErr) {
+        console.warn(`[Files API upload falhou para chave ...${currentKey.slice(-6)}]:`, uploadErr.message);
+        geminiFileRef = null;
       }
+
+      // 2. Tenta os modelos em cascata (se um esgotar a cota diária 429, tenta o próximo modelo!)
+      for (const curModel of candidateModels) {
+        if (fullOutput && fullOutput.trim()) break;
+
+        // Tentativa A: via Interactions API
+        try {
+          let interactionInput = [];
+          if (geminiFileRef && geminiFileRef.uri) {
+            if (curModel === 'gemini-3.5-transcribe') {
+              interactionInput = [
+                { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
+              ];
+            } else {
+              interactionInput = [
+                { type: 'text', text: promptText },
+                { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
+              ];
+            }
+          } else {
+            if (curModel === 'gemini-3.5-transcribe') {
+              interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
+            } else {
+              interactionInput = [
+                { type: 'text', text: promptText },
+                { type: 'audio', data: base64Data, mime_type: mimeType }
+              ];
+            }
+          }
+
+          const interaction = await ai.interactions.create({
+            model: curModel,
+            input: interactionInput,
+            api_version: 'v1beta'
+          });
+
+          if (interaction && interaction.output_text && interaction.output_text.trim()) {
+            fullOutput = interaction.output_text.trim();
+            successfulModel = curModel;
+            console.log(`[Sucesso Interactions API]: modelo ${curModel}`);
+            break;
+          }
+        } catch (interactErr) {
+          lastError = interactErr;
+          console.warn(`[Interactions API - ${curModel} falhou]:`, interactErr.message);
+        }
+
+        // Tentativa B: via Models API (generateContent)
+        try {
+          const contents = [
+            { text: promptText },
+            (geminiFileRef && geminiFileRef.uri)
+              ? { fileData: { fileUri: geminiFileRef.uri, mimeType: geminiFileRef.mimeType || mimeType } }
+              : { inlineData: { mimeType, data: base64Data } }
+          ];
+
+          const fallbackModel = (curModel === 'gemini-3.5-transcribe') ? 'gemini-3.8-flash' : curModel;
+          const response = await ai.models.generateContent({
+            model: fallbackModel,
+            contents
+          });
+
+          if (response && response.text && response.text.trim()) {
+            fullOutput = response.text.trim();
+            successfulModel = curModel;
+            console.log(`[Sucesso generateContent]: modelo ${curModel}`);
+            break;
+          }
+        } catch (genErr) {
+          lastError = genErr;
+          console.warn(`[generateContent - ${curModel} falhou]:`, genErr.message);
+        }
+      }
+    }
+
+    if (!fullOutput || !fullOutput.trim()) {
+      throw lastError || new Error('Não foi possível gerar a transcrição com os modelos disponíveis.');
     }
 
     let transcriptionText = fullOutput;
@@ -856,9 +877,20 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
 
   } catch (error) {
     console.error('[Erro na transcrição]:', error);
+
+    let errorMsg = error.message || 'Erro inesperado ao processar a transcrição.';
+    if (
+      errorMsg.includes('429') ||
+      errorMsg.includes('RESOURCE_EXHAUSTED') ||
+      errorMsg.includes('quota') ||
+      errorMsg.includes('free_tier_requests')
+    ) {
+      errorMsg = 'A cota diária gratuita do Google AI Studio para esta chave foi atingida (20 requisições/dia). Para usar sem limites diários, ative o faturamento (Pay-as-you-go) no console do Google AI Studio (aistudio.google.com) ou adicione uma nova chave de API.';
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro inesperado ao processar a transcrição.'
+      error: errorMsg
     });
   } finally {
     if (uploadedFile && uploadedFile.path) {
