@@ -120,7 +120,11 @@ function getGeminiClient() {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error('Serviço de IA temporariamente indisponível. Contate o suporte.');
   }
-  return new GoogleGenAI({ apiKey: apiKey.trim() });
+  return new GoogleGenAI({
+    apiKey: apiKey.trim(),
+    apiVersion: 'v1beta',
+    httpOptions: { apiVersion: 'v1beta' }
+  });
 }
 
 // ========================================================
@@ -702,56 +706,94 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
     console.log(`[Upload] Usuário: ${user.email} | Arquivo: ${uploadedFile.originalname} | Tamanho: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
 
     const selectedModel = model === 'gemini-3.5-transcribe' ? 'gemini-3.5-transcribe' : 'gemini-3.8-flash';
-    let interactionInput = [];
-
-    if (fileSize < 15 * 1024 * 1024) {
-      const fileBuffer = await fs.promises.readFile(filePath);
-      const base64Data = fileBuffer.toString('base64');
-
-      if (selectedModel === 'gemini-3.5-transcribe') {
-        interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
-      } else {
-        const promptText = buildTranscriptionPrompt({
-          detectSpeakers,
-          includeTimestamps,
-          outputFormat,
-          targetLanguage,
-          customInstructions
-        });
-        interactionInput = [
-          { type: 'text', text: promptText },
-          { type: 'audio', data: base64Data, mime_type: mimeType }
-        ];
-      }
-    } else {
-      geminiFileRef = await ai.files.upload({
-        file: filePath,
-        config: { mimeType }
-      });
-
-      if (selectedModel === 'gemini-3.5-transcribe') {
-        interactionInput = [{ type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }];
-      } else {
-        const promptText = buildTranscriptionPrompt({
-          detectSpeakers,
-          includeTimestamps,
-          outputFormat,
-          targetLanguage,
-          customInstructions
-        });
-        interactionInput = [
-          { type: 'text', text: promptText },
-          { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
-        ];
-      }
-    }
-
-    const interaction = await ai.interactions.create({
-      model: selectedModel,
-      input: interactionInput
+    const promptText = buildTranscriptionPrompt({
+      detectSpeakers,
+      includeTimestamps,
+      outputFormat,
+      targetLanguage,
+      customInstructions
     });
 
-    const fullOutput = interaction.output_text || '';
+    let fullOutput = '';
+    const fileBuffer = await fs.promises.readFile(filePath);
+    const base64Data = fileBuffer.toString('base64');
+
+    // Tentativa 1: Via Interactions API (v1beta nativo)
+    try {
+      let interactionInput = [];
+      if (fileSize < 15 * 1024 * 1024) {
+        if (selectedModel === 'gemini-3.5-transcribe') {
+          interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
+        } else {
+          interactionInput = [
+            { type: 'text', text: promptText },
+            { type: 'audio', data: base64Data, mime_type: mimeType }
+          ];
+        }
+      } else {
+        geminiFileRef = await ai.files.upload({
+          file: filePath,
+          config: { mimeType }
+        });
+        if (selectedModel === 'gemini-3.5-transcribe') {
+          interactionInput = [{ type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }];
+        } else {
+          interactionInput = [
+            { type: 'text', text: promptText },
+            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
+          ];
+        }
+      }
+
+      const interaction = await ai.interactions.create({
+        model: selectedModel,
+        input: interactionInput
+      });
+
+      fullOutput = interaction.output_text || '';
+    } catch (interactErr) {
+      console.warn('[Interactions API]: Tentando via generateContent...', interactErr.message);
+      fullOutput = '';
+    }
+
+    // Tentativa 2: Via Models API (generateContent - Universal e 100% Estável)
+    if (!fullOutput || !fullOutput.trim()) {
+      let contents = [];
+      if (fileSize < 15 * 1024 * 1024) {
+        contents = [
+          { text: promptText },
+          { inlineData: { mimeType, data: base64Data } }
+        ];
+      } else {
+        if (!geminiFileRef) {
+          geminiFileRef = await ai.files.upload({
+            file: filePath,
+            config: { mimeType }
+          });
+        }
+        contents = [
+          { text: promptText },
+          { fileData: { fileUri: geminiFileRef.uri, mimeType: geminiFileRef.mimeType || mimeType } }
+        ];
+      }
+
+      // Tenta com gemini-2.5-flash ou gemini-3.8-flash
+      const fallbackModel = (selectedModel === 'gemini-3.5-transcribe') ? 'gemini-2.5-flash' : selectedModel;
+      try {
+        const response = await ai.models.generateContent({
+          model: fallbackModel,
+          contents
+        });
+        fullOutput = response.text || '';
+      } catch (genErr) {
+        console.warn(`[generateContent com ${fallbackModel} falhou, tentando gemini-2.5-flash]:`, genErr.message);
+        const altResponse = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents
+        });
+        fullOutput = altResponse.text || '';
+      }
+    }
 
     let transcriptionText = fullOutput;
     let summaryText = '';
