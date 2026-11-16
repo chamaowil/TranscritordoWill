@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formAdminGrant: document.getElementById('formAdminGrant'),
     adminClientEmail: document.getElementById('adminClientEmail'),
     adminClientName: document.getElementById('adminClientName'),
+    adminClientPassword: document.getElementById('adminClientPassword'),
     adminSelectPlan: document.getElementById('adminSelectPlan'),
     btnRefreshAdminUsers: document.getElementById('btnRefreshAdminUsers'),
     adminUsersList: document.getElementById('adminUsersList'),
@@ -1188,6 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = dom.adminClientEmail.value.trim();
     const clientName = dom.adminClientName.value.trim();
     const plan = dom.adminSelectPlan.value;
+    const customPassword = dom.adminClientPassword ? dom.adminClientPassword.value.trim() : '';
 
     if (!email) {
       showAdminFeedback('Informe o e-mail do cliente.', 'error');
@@ -1202,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${state.token}`
         },
-        body: JSON.stringify({ email, clientName, plan })
+        body: JSON.stringify({ email, clientName, plan, customPassword })
       });
 
       const data = await res.json();
@@ -1211,6 +1213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(data.message);
         dom.adminClientEmail.value = '';
         dom.adminClientName.value = '';
+        if (dom.adminClientPassword) dom.adminClientPassword.value = '';
       } else {
         showAdminFeedback(data.message || 'Erro ao liberar plano.', 'error');
       }
@@ -1238,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         dom.adminUsersList.innerHTML = data.users.map(u => `
-          <div class="p-3 rounded-xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 flex flex-wrap items-center justify-between gap-2">
+          <div class="p-3.5 rounded-xl bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-200 dark:border-chumbo-800 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-bold text-chumbo-900 dark:text-white">${u.name}</span>
@@ -1246,21 +1249,26 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
               <p class="text-[11px] text-chumbo-500 dark:text-chumbo-400">${u.email}</p>
             </div>
-            <div class="flex items-center gap-2 text-right">
+            <div class="flex items-center gap-3 text-right">
               <div>
                 <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${u.plan === 'pro' || u.plan === 'unlimited' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-chumbo-200 text-chumbo-700 dark:bg-chumbo-800 dark:text-chumbo-300'}">
                   ${u.plan.toUpperCase()}
                 </span>
                 <p class="text-[10px] text-chumbo-500 font-medium mt-0.5">${u.credits} créditos</p>
               </div>
-              <button class="btn-quick-grant px-2.5 py-1 text-[11px] font-bold rounded-lg bg-royal-700 text-white hover:bg-royal-800 transition" data-email="${u.email}">
-                + Pro
-              </button>
+              <div class="flex items-center gap-1.5">
+                <button class="btn-quick-grant px-2.5 py-1 text-[11px] font-bold rounded-lg bg-royal-700 text-white hover:bg-royal-800 transition" data-email="${u.email}" title="Garante Plano Pro 30 dias">
+                  + Pro
+                </button>
+                <button class="btn-reset-pass px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-chumbo-300 dark:border-chumbo-700 hover:bg-chumbo-200 dark:hover:bg-chumbo-800 text-chumbo-700 dark:text-chumbo-300 transition" data-email="${u.email}" data-name="${u.name}" title="Definir nova senha">
+                  🔑 Senha
+                </button>
+              </div>
             </div>
           </div>
         `).join('');
 
-        // Ação rápida nos botões da lista
+        // Ação rápida nos botões de plano
         dom.adminUsersList.querySelectorAll('.btn-quick-grant').forEach(btn => {
           btn.addEventListener('click', async () => {
             const email = btn.getAttribute('data-email');
@@ -1283,6 +1291,38 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
               btn.disabled = false;
               btn.textContent = '+ Pro';
+            }
+          });
+        });
+
+        // Ação de redefinição de senha
+        dom.adminUsersList.querySelectorAll('.btn-reset-pass').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const email = btn.getAttribute('data-email');
+            const name = btn.getAttribute('data-name');
+            const newPass = prompt(`Defina a nova senha para ${name} (${email}):`, '123456');
+            if (newPass === null) return;
+            if (newPass.trim().length < 6) {
+              showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
+              return;
+            }
+            try {
+              const res = await fetch('/api/admin/reset-password', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${state.token}`
+                },
+                body: JSON.stringify({ email, newPassword: newPass.trim() })
+              });
+              const data = await res.json();
+              if (data.success) {
+                showToast(`Senha alterada! Nova senha: "${newPass.trim()}"`);
+              } else {
+                showToast(data.message || 'Erro ao alterar senha.', 'error');
+              }
+            } catch(e) {
+              showToast('Erro ao redefinir senha.', 'error');
             }
           });
         });

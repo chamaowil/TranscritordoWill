@@ -312,7 +312,7 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, (req, res) => {
 
 app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { email, plan, addCredits, clientName } = req.body;
+    const { email, plan, addCredits, clientName, customPassword } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Informe um e-mail válido para o cliente.' });
@@ -330,10 +330,13 @@ app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res
     if (planToSet === 'pro') creditsToSet = 999;
     if (planToSet === 'unlimited') creditsToSet = 99999;
 
+    const chosenPassword = customPassword && customPassword.trim().length >= 6
+      ? customPassword.trim()
+      : '123456';
+
     if (!user) {
-      // Cliente novo ainda não cadastrado no site: cria a conta com senha provisória
-      const defaultPassword = 'senha' + Math.floor(1000 + Math.random() * 9000);
-      const passwordHash = await bcrypt.hash(defaultPassword, 10);
+      // Cliente novo ainda não cadastrado no site: cria a conta com senha padrão fácil ou personalizada
+      const passwordHash = await bcrypt.hash(chosenPassword, 10);
       user = db.createUser({
         name: clientName && clientName.trim() ? clientName.trim() : cleanEmail.split('@')[0],
         email: cleanEmail,
@@ -345,8 +348,8 @@ app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res
       return res.json({
         success: true,
         isNewUser: true,
-        message: `Novo cliente cadastrado! Plano: ${planToSet.toUpperCase()} | Senha provisória: ${defaultPassword}`,
-        tempPassword: defaultPassword,
+        message: `Novo cliente cadastrado com sucesso! Plano: ${planToSet.toUpperCase()} | Senha de acesso: ${chosenPassword}`,
+        tempPassword: chosenPassword,
         user: {
           id: user.id,
           name: user.name,
@@ -363,15 +366,23 @@ app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res
       newCredits = (user.credits || 0) + Number(addCredits);
     }
 
-    const updatedUser = db.updateUser(user.id, {
+    const updates = {
       plan: planToSet,
       credits: newCredits
-    });
+    };
+
+    // Se passou uma senha personalizada, atualiza também a senha
+    if (customPassword && customPassword.trim().length >= 6) {
+      updates.passwordHash = await bcrypt.hash(customPassword.trim(), 10);
+    }
+
+    const updatedUser = db.updateUser(user.id, updates);
 
     res.json({
       success: true,
       isNewUser: false,
-      message: `Plano atualizado com sucesso para ${user.name} (${user.email})!`,
+      message: `Plano atualizado para ${user.name} (${user.email})! Senha: ${customPassword ? customPassword.trim() : '(mantida)'}`,
+      tempPassword: customPassword ? customPassword.trim() : null,
       user: {
         id: updatedUser.id,
         name: updatedUser.name,
@@ -384,6 +395,33 @@ app.post('/api/admin/set-plan', authenticateToken, requireAdmin, async (req, res
   } catch (err) {
     console.error('Erro ao definir plano admin:', err);
     res.status(500).json({ success: false, message: 'Erro interno ao alterar plano.' });
+  }
+});
+
+app.post('/api/admin/reset-password', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { email, newPassword = '123456' } = req.body;
+    if (!email || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'A senha deve ter no mínimo 6 caracteres.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = db.findUserByEmail(cleanEmail);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    db.updateUser(user.id, { passwordHash });
+
+    res.json({
+      success: true,
+      message: `Senha de ${user.name} (${user.email}) redefinida com sucesso para "${newPassword}"!`,
+      newPassword
+    });
+  } catch (err) {
+    console.error('Erro ao redefinir senha:', err);
+    res.status(500).json({ success: false, message: 'Erro interno ao redefinir senha.' });
   }
 });
 

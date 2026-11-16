@@ -827,15 +827,22 @@
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Qual plano ou crédito liberar?</label>
-            <select id="adminSelectPlan" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white font-semibold focus:outline-none focus:border-royal-700 transition">
-              <option value="pro" selected>⭐ Plano Pro Mensal (Recomendado - 999 créditos / 30 dias)</option>
-              <option value="unlimited">🏢 Plano Escritório Ilimitado (Totalmente Ilimitado)</option>
-              <option value="credits_10">✨ Pacote de 10 Créditos Avulsos</option>
-              <option value="credits_5">✨ Pacote de 5 Créditos Avulsos</option>
-              <option value="single">✨ 1 Crédito Avulso</option>
-            </select>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Qual plano ou crédito liberar?</label>
+              <select id="adminSelectPlan" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white font-semibold focus:outline-none focus:border-royal-700 transition">
+                <option value="pro" selected>⭐ Plano Pro Mensal (Recomendado - 999 créditos / 30 dias)</option>
+                <option value="unlimited">🏢 Plano Escritório Ilimitado (Totalmente Ilimitado)</option>
+                <option value="credits_10">✨ Pacote de 10 Créditos Avulsos</option>
+                <option value="credits_5">✨ Pacote de 5 Créditos Avulsos</option>
+                <option value="single">✨ 1 Crédito Avulso</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-chumbo-800 dark:text-chumbo-200 mb-1.5">Senha de Acesso do Cliente</label>
+              <input type="text" id="adminClientPassword" placeholder="Padrão: 123456 (ou digite outra)" class="w-full bg-chumbo-50 dark:bg-chumbo-950 border border-chumbo-300 dark:border-chumbo-700 rounded-xl px-3.5 py-2.5 text-xs text-chumbo-900 dark:text-white focus:outline-none focus:border-royal-700 focus:ring-2 focus:ring-royal-500/20 transition">
+            </div>
           </div>
 
           <button type="submit" id="btnSubmitAdminGrant" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2">
