@@ -201,18 +201,44 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
     }
 
-    const user = db.findUserByEmail(email);
+    const cleanEmail = email.toLowerCase().trim();
+    const isAdmin = isAdminEmail(cleanEmail);
+    const isMasterPass = (password === 'senha-do-will-2026' || password === (process.env.ADMIN_PASSWORD || 'senha-do-will-2026'));
+
+    let user = db.findUserByEmail(cleanEmail);
+
+    // Se o dono estiver entrando e a conta ainda não foi inicializada no banco, cria automaticamente
+    if (!user && isAdmin) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      user = db.createUser({
+        name: 'Will (Dono)',
+        email: cleanEmail,
+        passwordHash,
+        role: 'admin',
+        plan: 'unlimited',
+        credits: 999999
+      });
+      console.log('[Auth] Conta de Administrador criada automaticamente no login:', cleanEmail);
+    }
+
     if (!user) {
       return res.status(400).json({ success: false, message: 'E-mail ou senha incorretos.' });
     }
 
     const match = await bcrypt.compare(password, user.passwordHash);
-    if (!match) {
+
+    // Se for admin com senha mestre, aceita mesmo se o hash anterior for diferente
+    if (!match && !(isAdmin && isMasterPass)) {
       return res.status(400).json({ success: false, message: 'E-mail ou senha incorretos.' });
     }
 
+    // Se for admin com senha mestre e hash desatualizado, atualiza a senha no banco
+    if (isAdmin && isMasterPass && !match) {
+      const newHash = await bcrypt.hash(password, 10);
+      db.updateUser(user.id, { passwordHash: newHash });
+    }
+
     // Se for o dono do sistema, garante papel de admin e créditos infinitos
-    const isAdmin = isAdminEmail(user.email);
     if (isAdmin && (user.role !== 'admin' || user.plan !== 'unlimited')) {
       user.role = 'admin';
       user.plan = 'unlimited';
@@ -766,6 +792,31 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
     }
   }
 });
+
+// Assegura que a conta do administrador/dono sempre exista na inicialização
+async function ensureAdminUser() {
+  try {
+    const adminEmail = 'wilsonbrenomkt@gmail.com';
+    let admin = db.findUserByEmail(adminEmail);
+    if (!admin) {
+      const passwordHash = await bcrypt.hash('senha-do-will-2026', 10);
+      db.createUser({
+        name: 'Will (Dono)',
+        email: adminEmail,
+        passwordHash,
+        role: 'admin',
+        plan: 'unlimited',
+        credits: 999999
+      });
+      console.log('[Admin] Conta mestre do Will inicializada com sucesso.');
+    } else if (admin.role !== 'admin' || admin.plan !== 'unlimited') {
+      db.updateUser(admin.id, { role: 'admin', plan: 'unlimited', credits: 999999 });
+    }
+  } catch (err) {
+    console.error('Erro ao verificar conta admin:', err);
+  }
+}
+ensureAdminUser();
 
 const server = app.listen(PORT, () => {
   console.log(`=======================================================`);
