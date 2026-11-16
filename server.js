@@ -704,14 +704,34 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
       customInstructions = ''
     } = req.body;
 
+    const filePath = uploadedFile.path;
+    const fileSize = uploadedFile.size;
+    const mimeType = getAudioMimeType(filePath, uploadedFile.mimetype);
+
+    console.log(`[Upload] Usuário: ${user.email} | Arquivo: ${uploadedFile.originalname} | Tamanho: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
+
+    const selectedModel = (model === 'gemini-3.5-transcribe' || model === 'gemini-3.5-flash-lite')
+      ? model
+      : 'gemini-3.8-flash';
+
+    const promptText = buildTranscriptionPrompt({
+      detectSpeakers,
+      includeTimestamps,
+      outputFormat,
+      targetLanguage,
+      customInstructions
+    });
+
     const candidateKeys = getGeminiApiKeys();
     if (candidateKeys.length === 0) {
       throw new Error('Nenhuma chave da API Gemini configurada no servidor.');
     }
 
-    const candidateModels = selectedModel === 'gemini-3.5-transcribe'
-      ? ['gemini-3.5-transcribe', 'gemini-3.8-flash', 'gemini-3.5-flash-lite']
-      : ['gemini-3.8-flash', 'gemini-3.5-transcribe', 'gemini-3.5-flash-lite'];
+    const allModels = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-transcribe'];
+    const candidateModels = [
+      selectedModel,
+      ...allModels.filter(m => m !== selectedModel)
+    ];
 
     let fullOutput = '';
     let lastError = null;
