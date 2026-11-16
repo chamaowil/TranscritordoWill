@@ -718,10 +718,33 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
     const fileBuffer = await fs.promises.readFile(filePath);
     const base64Data = fileBuffer.toString('base64');
 
-    // Tentativa 1: Via Interactions API (v1beta nativo)
+    // 1. Faz upload do áudio usando a Files API oficial (suporta até 2GB com máxima fidelidade)
+    try {
+      geminiFileRef = await ai.files.upload({
+        file: filePath,
+        config: { mimeType }
+      });
+      console.log(`[Files API] Áudio carregado com sucesso: ${geminiFileRef.name} (${geminiFileRef.uri})`);
+    } catch (uploadErr) {
+      console.warn('[Files API upload falhou, usará fallback inline]:', uploadErr.message);
+    }
+
+    // 2. Tentativa Primária: Interactions API com gemini-3.8-flash ou gemini-3.5-transcribe
     try {
       let interactionInput = [];
-      if (fileSize < 15 * 1024 * 1024) {
+      if (geminiFileRef && geminiFileRef.uri) {
+        if (selectedModel === 'gemini-3.5-transcribe') {
+          interactionInput = [
+            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
+          ];
+        } else {
+          interactionInput = [
+            { type: 'text', text: promptText },
+            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
+          ];
+        }
+      } else {
+        // Se o upload falhou, usa inline base64
         if (selectedModel === 'gemini-3.5-transcribe') {
           interactionInput = [{ type: 'audio', data: base64Data, mime_type: mimeType }];
         } else {
@@ -730,68 +753,44 @@ app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (re
             { type: 'audio', data: base64Data, mime_type: mimeType }
           ];
         }
-      } else {
-        geminiFileRef = await ai.files.upload({
-          file: filePath,
-          config: { mimeType }
-        });
-        if (selectedModel === 'gemini-3.5-transcribe') {
-          interactionInput = [{ type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }];
-        } else {
-          interactionInput = [
-            { type: 'text', text: promptText },
-            { type: 'audio', uri: geminiFileRef.uri, mime_type: geminiFileRef.mimeType || mimeType }
-          ];
-        }
       }
 
       const interaction = await ai.interactions.create({
         model: selectedModel,
-        input: interactionInput
+        input: interactionInput,
+        api_version: 'v1beta'
       });
 
       fullOutput = interaction.output_text || '';
     } catch (interactErr) {
-      console.warn('[Interactions API]: Tentando via generateContent...', interactErr.message);
+      console.warn('[Interactions API falhou, tentando fallback generateContent com gemini-3.8-flash]:', interactErr.message);
       fullOutput = '';
     }
 
-    // Tentativa 2: Via Models API (generateContent - Universal e 100% Estável)
+    // 3. Tentativa Secundária (Fallback Universal): Models API (generateContent) com gemini-3.8-flash
     if (!fullOutput || !fullOutput.trim()) {
       let contents = [];
-      if (fileSize < 15 * 1024 * 1024) {
-        contents = [
-          { text: promptText },
-          { inlineData: { mimeType, data: base64Data } }
-        ];
-      } else {
-        if (!geminiFileRef) {
-          geminiFileRef = await ai.files.upload({
-            file: filePath,
-            config: { mimeType }
-          });
-        }
+      if (geminiFileRef && geminiFileRef.uri) {
         contents = [
           { text: promptText },
           { fileData: { fileUri: geminiFileRef.uri, mimeType: geminiFileRef.mimeType || mimeType } }
         ];
+      } else {
+        contents = [
+          { text: promptText },
+          { inlineData: { mimeType, data: base64Data } }
+        ];
       }
 
-      // Tenta com gemini-2.5-flash ou gemini-3.8-flash
-      const fallbackModel = (selectedModel === 'gemini-3.5-transcribe') ? 'gemini-2.5-flash' : selectedModel;
       try {
         const response = await ai.models.generateContent({
-          model: fallbackModel,
+          model: 'gemini-3.8-flash',
           contents
         });
         fullOutput = response.text || '';
       } catch (genErr) {
-        console.warn(`[generateContent com ${fallbackModel} falhou, tentando gemini-2.5-flash]:`, genErr.message);
-        const altResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents
-        });
-        fullOutput = altResponse.text || '';
+        console.error('[Fallback generateContent falhou]:', genErr.message);
+        throw new Error(genErr.message || 'Falha ao processar o áudio com a inteligência artificial.');
       }
     }
 
